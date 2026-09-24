@@ -1,6 +1,12 @@
 # ADR-004 — Animation: SMIL-primary, IR-isolated
 
-Status: DELIVERY_CONFIRMED / MOTION_UNVERIFIED. Date: 2026-09-24.
+Status: SMIL_PRIMARY_CONFIRMED (with permanent static fallback). Date: 2026-09-24.
+
+Evidence: real-browser matrix (Chromium 153, Firefox 155, WebKit 26.6; Windows; probe SHAs
+91f4fbb→47d7391): every restricted-subset primitive visibly animates in the GitHub preview `<img>`
+path — animate/animateTransform/animateMotion/mpath/stagger/freeze/canonical all PASS with static
+controls at 0px. Direct-SVG attribute reads confirm timelines advance. Static fallback stays
+architecturally mandatory (first frame complete; M3 = reduced-motion output), not a fallback backend.
 
 Proven: SVG_DELIVERY_CONFIRMED (16 isolated probes serve intact via github.com + raw).
 Unproven: README_MOTION_UNVERIFIED (no rendered pixels observed changing over time in GitHub README;

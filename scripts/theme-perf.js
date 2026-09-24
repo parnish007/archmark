@@ -2,6 +2,7 @@
 // Theme: THEME.md preview under light/dark colorScheme — record selected asset + screenshots.
 // Perf: rAF frame-delta distributions on local animation files (honest wall-clock sampling).
 import { writeFileSync, mkdirSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 
 const THEME_URL = 'https://github.com/parnish007/archmark/blob/probe/github-rendering/probes/github/THEME.md';
@@ -31,7 +32,7 @@ const perf = {};
   const b = await chromium.launch();
   const page = await b.newPage();
   for (const f of ['probes/github/canonical-request.svg', 'probes/github/q-stagger-parallel.svg', 'probes/github/q-failure-recovery.svg']) {
-    await page.goto('file:///D:/projects/archmark/' + f, { waitUntil: 'load', timeout: 30000 });
+    await page.goto(pathToFileURL(f).href, { waitUntil: 'load', timeout: 30000 });
     await page.waitForTimeout(500);
     const deltas = await page.evaluate(() => new Promise((res) => {
       const ds = []; let last = performance.now(); let n = 0;
