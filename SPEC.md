@@ -10,7 +10,7 @@ Non-goals v0: interactive playground, VS Code ext, views multi-projection, vendo
 ```
 document   := stmt*
 stmt       := component | connection | flow | group | view? | meta?
-component  := kind ident stringLit?            // kind ∈ actor service app database cache queue gateway worker storage model external boundary cluster cloud region
+component  := kind ident stringLit?            // kind ∈ actor service app database cache queue gateway worker storage model external boundary cluster cloud region browser mobile api server agent function container network filesystem
 connection := ident "->" ident (labelBlock?)?
 labelBlock := "{" (prop ",")* "}"
 flow       := "flow" ident "{" flowStep* "}"

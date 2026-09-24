@@ -1,19 +1,31 @@
-# ArchMark hero (candidate — generated, not marketing)
+# ArchMark hero — write this…
 
-<!-- archmark id=hero
+```archmark
 actor user "User"
-service frontend "Frontend"
-service api "API"
+browser frontend "Frontend"
+api api "API"
 model model "AI Model"
-database db "Database"
+database db "PostgreSQL"
 
 user -> frontend
 frontend -> api
 api -> model
-model -> api
 api -> db
-db -> api
-api -> frontend
+```
+
+…get this (generated light/dark SVG):
+
+<!-- archmark id=hero
+actor user "User"
+browser frontend "Frontend"
+api api "API"
+model model "AI Model"
+database db "PostgreSQL"
+
+user -> frontend
+frontend -> api
+api -> model
+api -> db
 -->
 
 <!-- archmark-render:start hero -->
@@ -23,3 +35,7 @@ api -> frontend
 </picture>
 <!-- archmark-render:end hero -->
 
+
+…and this animated request flow (M1 crisp-technical):
+
+![User request: Frontend to API to Model, then Database](../../probes/github/canonical-request.svg)

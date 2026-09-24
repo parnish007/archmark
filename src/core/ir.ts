@@ -2,11 +2,14 @@
 export type NodeKind =
   | 'actor' | 'service' | 'app' | 'database' | 'cache' | 'queue'
   | 'gateway' | 'worker' | 'storage' | 'model' | 'external'
-  | 'boundary' | 'cluster' | 'cloud' | 'region';
+  | 'boundary' | 'cluster' | 'cloud' | 'region'
+  | 'browser' | 'mobile' | 'api' | 'server' | 'agent' | 'function'
+  | 'container' | 'network' | 'filesystem';
 
 export const NODE_KINDS: readonly NodeKind[] = [
   'actor','service','app','database','cache','queue','gateway','worker',
   'storage','model','external','boundary','cluster','cloud','region',
+  'browser','mobile','api','server','agent','function','container','network','filesystem',
 ];
 
 export interface ArchNode { id: string; kind: NodeKind; label: string; group?: string }
