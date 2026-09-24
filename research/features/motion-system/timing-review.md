@@ -8,6 +8,8 @@ M2: smoothness 5 but causality 3, clarity 2, hierarchy 2 (fade at origin misdire
 M3: reduced-motion 5, loop 5, but continuity 2, clarity 2 (400ms subliminal, frozen dot ambiguous).
 
 Selected: M1 crisp-technical (paced 700 + 200ms pulse + begin-chain + freeze). M3 adopted verbatim as
-prefers-reduced-motion fallback. M2 opt-in editorial only. Perf: no filters, M1 +340B justified;
+prefers-reduced-motion fallback. M2 decision (v0): fixed static defect (destination box + rx8/ink to match
+M1/M3) and kept as EXPERIMENTAL opt-in only — explicitly deferred from all v0 product surfaces; no further
+v0 effort. M1 is the product priority. Perf: no filters, M1 +340B justified;
 all once+freeze, no indefinite loops. Note: M2 probe missing destination box + rx10 deviation —
 judged motion-only; rebuild M2 with identical static before theme use.

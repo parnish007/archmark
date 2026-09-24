@@ -1,0 +1,7 @@
+service x "X"
+database db "DB"
+
+group empty "Empty Group" {
+}
+
+x -> db

@@ -2,6 +2,7 @@
 <title id="t">M2 soft-editorial request (opt-in theme)</title><desc id="d">800ms eased send + 250ms fade pulse. Softer, less technical.</desc>
 <rect width="640" height="140" fill="#FFFFFF"/>
 <path id="e-m2" d="M150 70 H490" fill="none" stroke="#4A5A6E" stroke-width="1.75"/>
-<rect x="40" y="40" width="110" height="60" rx="10" fill="#FFFFFF" stroke="#8A97A8"/>
+<rect x="40" y="40" width="110" height="60" rx="8" fill="#FFFFFF" stroke="#1A2330" stroke-width="1.5"/>
+<rect x="490" y="40" width="110" height="60" rx="8" fill="#FFFFFF" stroke="#1A2330" stroke-width="1.5"/>
 <circle r="5" fill="#2563EB" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.25s" fill="freeze"/><animateMotion dur="0.8s" fill="freeze" calcMode="spline" keyPoints="0;1" keyTimes="0;1" keySplines="0.2 0 0 1"><mpath href="#e-m2"/></animateMotion></circle>
 </svg>
