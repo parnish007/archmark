@@ -1,0 +1,20 @@
+actor user "User"
+service frontend "Frontend"
+service api "API"
+model llm "LLM"
+database db "PostgreSQL"
+cache redis "Redis"
+
+user -> frontend
+frontend -> api
+api -> llm
+api -> db
+api -> redis
+
+flow inference {
+  user -> frontend
+  frontend -> api
+  api -> llm { type: request }
+  llm -> api { type: response }
+  api -> redis { type: write }
+}

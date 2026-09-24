@@ -1,0 +1,14 @@
+service producer "Producer"
+queue bus "Event Bus"
+service c1 "Billing"
+service c2 "Search"
+service c3 "Notify"
+worker idx "Indexer"
+database read "Read Model"
+
+producer -> bus
+bus -> c1
+bus -> c2
+bus -> c3
+c2 -> idx
+idx -> read

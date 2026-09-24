@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="140" viewBox="0 0 640 140" role="img" aria-labelledby="t d">
+<title id="t">M1 crisp-technical request (recommended)</title><desc id="d">paced 700ms send on real path, 200ms pulse, 500ms hollow response, begin-chained once+freeze.</desc>
+<rect width="640" height="140" fill="#FFFFFF"/>
+<path id="e-m1" d="M150 70 H490" fill="none" stroke="#4A5A6E" stroke-width="1.75"/>
+<rect x="40" y="40" width="110" height="60" rx="8" fill="#FFFFFF" stroke="#1A2330" stroke-width="1.5"/>
+<rect x="490" y="40" width="110" height="60" rx="8" fill="#FFFFFF" stroke="#1A2330" stroke-width="1.5"/>
+<circle r="6" fill="#2563EB"><animateMotion id="m1-send" dur="0.7s" fill="freeze" calcMode="paced"><mpath href="#e-m1"/></animateMotion></circle>
+<circle cx="545" cy="70" r="8" fill="none" stroke="#2563EB" stroke-width="2" opacity="0"><animate attributeName="opacity" values="0;0.8;0" keyTimes="0;0.5;1" dur="0.2s" begin="m1-send.end" fill="freeze"/><animate attributeName="r" values="8;18" keyTimes="0;1" dur="0.2s" begin="m1-send.end" fill="freeze"/></circle>
+</svg>

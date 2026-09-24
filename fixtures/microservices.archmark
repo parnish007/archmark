@@ -1,0 +1,21 @@
+gateway edge "Edge Gateway"
+service auth "Auth"
+service catalog "Catalog"
+service cart "Cart"
+service orders "Orders"
+service payments "Payments"
+database users "Users DB"
+database stock "Inventory DB"
+database ledger "Ledger DB"
+queue events "Events"
+worker shipper "Shipper"
+
+edge -> auth
+edge -> catalog
+auth -> users
+catalog -> stock
+cart -> orders
+orders -> payments
+payments -> ledger
+orders -> events
+events -> shipper

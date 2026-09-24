@@ -1,0 +1,12 @@
+service api "API Service"
+database users "User Accounts Database"
+database orders "Order History And Ledger Store"
+database warehouse "Analytics Warehouse Replica EU"
+cache hot "Hot Session Cache Redis Cluster"
+storage blobs "Object Storage Bucket Media Assets"
+
+api -> users
+api -> orders
+api -> warehouse
+api -> hot
+api -> blobs

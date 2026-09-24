@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="140" viewBox="0 0 640 140" role="img" aria-labelledby="t d">
+<title id="t">M3 minimal static-first (reduced-motion fallback)</title><desc id="d">400ms quick send, frozen end state = meaningful static. Default when prefers-reduced-motion.</desc>
+<rect width="640" height="140" fill="#FFFFFF"/>
+<path id="e-m3" d="M150 70 H490" fill="none" stroke="#4A5A6E" stroke-width="1.75"/>
+<rect x="40" y="40" width="110" height="60" rx="8" fill="#FFFFFF" stroke="#1A2330" stroke-width="1.5"/>
+<rect x="490" y="40" width="110" height="60" rx="8" fill="#FFFFFF" stroke="#1A2330" stroke-width="1.5"/>
+<circle r="5" fill="#2563EB"><animateMotion dur="0.4s" fill="freeze" calcMode="paced"><mpath href="#e-m3"/></animateMotion></circle>
+</svg>

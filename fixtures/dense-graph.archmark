@@ -1,0 +1,24 @@
+service a "A"
+service b "B"
+service c "C"
+service d "D"
+service e "E"
+service f "F"
+service g "G"
+service h "H"
+database db "DB"
+queue q "Q"
+
+a -> b
+a -> c
+b -> d
+c -> d
+d -> e
+d -> f
+e -> g
+f -> g
+g -> h
+h -> db
+e -> q
+q -> f
+c -> q

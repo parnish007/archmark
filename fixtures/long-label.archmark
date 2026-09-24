@@ -1,0 +1,6 @@
+service api "API Gateway With Extremely Long Service Name That Must Truncate Gracefully"
+database db "PostgreSQL Primary With A Very Long Descriptive Label For Wrapping Tests"
+actor user "End User With A Surprisingly Long Display Name For Edge Cases"
+
+user -> api
+api -> db
