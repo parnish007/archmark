@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="160" viewBox="0 0 640 160" role="img" aria-labelledby="t d">
+<title id="t">P-SMIL-02 pulse + stagger compound</title><desc id="d">Source activates, edge draws, target pulses, response returns. begin-chained.</desc>
+<rect width="640" height="160" fill="#FFFFFF"/>
+<path id="e1" d="M180 80 H460" fill="none" stroke="#4A5A6E" stroke-width="1.75" stroke-dasharray="280" stroke-dashoffset="280"><animate attributeName="stroke-dashoffset" from="280" to="0" dur="0.5s" fill="freeze" id="draw1"/></path>
+<circle r="6" fill="#2563EB" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.2s" begin="draw1.begin" fill="freeze"/><animateMotion dur="0.7s" begin="draw1.begin" fill="freeze" calcMode="paced"><mpath href="#e1"/></animateMotion></circle>
+<circle cx="530" cy="80" r="8" fill="none" stroke="#2563EB" stroke-width="2" opacity="0"><animate attributeName="opacity" values="0;0.8;0" keyTimes="0;0.5;1" dur="0.6s" begin="draw1.end" fill="freeze"/><animate attributeName="r" values="8;18" keyTimes="0;1" dur="0.6s" begin="draw1.end" fill="freeze"/></circle>
+</svg>

@@ -1,0 +1,14 @@
+actor user "User"
+service frontend "Frontend"
+service api "API"
+database db "PostgreSQL"
+
+user -> frontend
+frontend -> api
+api -> db
+
+flow request {
+  user -> frontend
+  frontend -> api
+  api -> db
+}

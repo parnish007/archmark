@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="120" viewBox="0 0 640 120" role="img" aria-labelledby="t d">
+<title id="t">P-SMIL-01 animateMotion on real path</title><desc id="d">Packet travels exact orthogonal edge path via mpath. Core ArchMark motion primitive.</desc>
+<rect width="640" height="120" fill="#FFFFFF"/>
+<path id="edge-ab" d="M180 60 H460" fill="none" stroke="#4A5A6E" stroke-width="1.75"/>
+<g><rect x="40" y="30" width="140" height="60" rx="8" fill="#FFFFFF" stroke="#1A2330" stroke-width="1.5"/><rect x="460" y="30" width="140" height="60" rx="8" fill="#FFFFFF" stroke="#1A2330" stroke-width="1.5"/></g>
+<circle r="6" fill="#2563EB"><animateMotion dur="0.7s" repeatCount="indefinite" calcMode="paced"><mpath href="#edge-ab"/></animateMotion></circle>
+</svg>
