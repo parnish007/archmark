@@ -1,0 +1,6 @@
+# Single-package v0. Internal module boundaries (language/core/renderer/markdown/cli)
+# under src/ provide real isolation. Split into @archmark/* only when
+# independent consumption justifies it (see ADR-001).
+packages: []
+allowBuilds:
+  esbuild: set this to true or false

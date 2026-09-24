@@ -1,0 +1,30 @@
+{
+  "name": "archmark",
+  "version": "0.1.0",
+  "description": "Beautiful, animated architecture-as-code for GitHub READMEs",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "archmark": "./dist/cli/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "echo \"lint: tsc --noEmit (eslint to be added)\" && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "check": "node ./dist/cli/cli.js check",
+    "fmt": "prettier --write \"src/**/*.ts\" \"*.md\" 2>/dev/null || echo \"prettier not installed; skipping\""
+  },
+  "dependencies": {
+    "elkjs": "0.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,35 @@
+# Dependencies / build
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Test / reports
+coverage/
+playwright-report/
+test-results/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Env / secrets — never commit
+.env
+.env.*
+*.pem
+*.key
+
+# ArchMark local-only (never push to remote)
+research/
+.archmark-cache/
+
+# Benchmarks raw output (local-only perf data)
+/benchmarks/results/
