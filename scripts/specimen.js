@@ -14,7 +14,7 @@ for (const cand of Object.keys(CANDIDATES)) {
     const W = 160 + cols * cw; const H = 60 + rows * rh;
     const parts = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img">`];
     parts.push(`<title>Candidate ${cand} ${tname} specimen</title><rect width="${W}" height="${H}" fill="${t.bg}"/>`);
-    parts.push(`<text x="20" y="36" font-family="${FONT_UI}" font-size="16" font-weight="600" fill="${t.ink}">Candidate ${cand} — ${tname} — 21 icons × 16/20/24/32/48</text>`);
+    parts.push(`<text x="20" y="36" font-family="${FONT_UI}" font-size="16" font-weight="600" fill="${t.ink}">Candidate ${cand} — ${tname} — 22 icons × 16/20/24/32/48</text>`);
     KINDS.forEach((k, r) => {
       const y = 60 + r * rh;
       parts.push(`<text x="20" y="${y + 30}" font-family="${FONT_UI}" font-size="12" fill="${t.muted}">${k}</text>`);

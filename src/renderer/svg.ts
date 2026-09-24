@@ -31,6 +31,9 @@ export function renderStatic(scene: Scene, themeName: ThemeName, opts: { title?:
   parts.push(`<title id="am-t">${escapeXmlText(title)}</title><desc id="am-d">${escapeXmlText(desc)}</desc>`);
   parts.push(`<rect width="${scene.w}" height="${scene.h}" fill="${t.bg}"/>`);
   parts.push(`<defs><marker id="am-arrow" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse"><polygon points="0,0 8,3 0,6" fill="${t.edge}"/></marker></defs>`);
+  for (const g of [...(scene.groups ?? [])].sort((a, b) => a.id.localeCompare(b.id))) {
+    parts.push(`<g id="g-${escapeXmlAttr(g.id)}"><rect x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" rx="12" fill="${t.grid}" opacity="0.35" stroke="${t.muted}" stroke-width="1" stroke-dasharray="6 4"/><text x="${g.x + 16}" y="${g.y + 22}" font-family="${FONT_UI}" font-size="10" font-weight="600" letter-spacing="0.06em" fill="${t.muted}">${escapeXmlText(g.label.toUpperCase().slice(0, 40))}</text></g>`);
+  }
   const edges = [...scene.edges].sort((a, b) => a.id.localeCompare(b.id));
   for (const e of edges) {
     parts.push(`<path id="e-${escapeXmlAttr(e.id)}" d="${escapeXmlAttr(e.d)}" fill="none" stroke="${t.edge}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#am-arrow)"/>`);

@@ -68,7 +68,8 @@ export class ElkLayout implements LayoutEngine {
 // SceneGraph: renderer input (grid-snapped, sorted, 2dp).
 export interface SceneNode { id: string; kind: string; label: string; x: number; y: number; w: number; h: number }
 export interface SceneEdge { id: string; from: string; to: string; label?: string; d: string }
-export interface Scene { w: number; h: number; nodes: SceneNode[]; edges: SceneEdge[]; title?: string }
+export interface SceneGroup { id: string; label: string; x: number; y: number; w: number; h: number }
+export interface Scene { w: number; h: number; nodes: SceneNode[]; edges: SceneEdge[]; groups: SceneGroup[]; title?: string }
 
 function edgePath(pts: { x: number; y: number }[]): string {
   if (pts.length === 0) return '';
@@ -96,6 +97,18 @@ export function toScene(model: ArchModel, placed: PlacedGraph, title?: string): 
     }
     return { id: e.id, from: e.from, to: e.to, ...(e.label ? { label: e.label } : {}), d };
   });
-  return { w: placed.w, h: placed.h, nodes, edges, ...(title ? { title } : {}) };
+  // Groups: bounding box of members + 24px padding + 28px label band; 1 level only.
+  const groups: SceneGroup[] = [...model.groups].sort((a, b) => a.id.localeCompare(b.id)).map(g => {
+    const ms = g.members.map(id => nodeById.get(id)).filter(Boolean) as SceneNode[];
+    if (ms.length === 0) return { id: g.id, label: g.label, x: 0, y: 0, w: 0, h: 0 };
+    const x0 = Math.min(...ms.map(m => m.x)) - 24; const y0 = Math.min(...ms.map(m => m.y)) - 40;
+    const x1 = Math.max(...ms.map(m => m.x + m.w)) + 24; const y1 = Math.max(...ms.map(m => m.y + m.h)) + 24;
+    return { id: g.id, label: g.label, x: r2(x0), y: r2(y0), w: r2(x1 - x0), h: r2(y1 - y0) };
+  }).filter(g => g.w > 0);
+  // Expand canvas to include groups.
+  let gw = placed.w; let gh = placed.h;
+  for (const g of groups) { gw = Math.max(gw, g.x + g.w + 24); gh = Math.max(gh, g.y + g.h + 24); }
+  const snap2 = (v: number) => Math.ceil(v / 8) * 8;
+  return { w: snap2(gw), h: snap2(gh), nodes, edges, groups, ...(title ? { title } : {}) };
 }
 function r2(v: number): number { return Math.round(v * 100) / 100; }
