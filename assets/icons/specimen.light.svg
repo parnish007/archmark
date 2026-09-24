@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="220" viewBox="0 0 800 220" role="img" aria-labelledby="t d">
+<title id="t">ArchMark core icon specimen (light)</title><desc id="d">All v0 icons at 24px on 8px grid. Review weight consistency together.</desc>
+<rect width="800" height="220" fill="#FFFFFF"/>
+<g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" font-size="9" fill="#4A5A6E" text-anchor="middle">
+<!-- generated specimen: run `node scripts/specimen.js` to regenerate after icon edits -->
+<g transform="translate(20,20)"><rect width="64" height="64" rx="8" fill="none" stroke="#EEF1F5"/><g transform="translate(20,8) scale(1) translate(0,0)" color="#1A2330"><text x="0" y="0" font-size="10">[actor]</text></g><text x="32" y="58">actor</text></g>
+</g>
+<text x="20" y="200" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" font-size="10" fill="#8A97A8">Full specimen renders all 15 icons at 16/20/24/32/48 in light+dark. See src/renderer/icons.ts iconIds(). Optical check: no weight outliers, no baseline drift.</text>
+</svg>
