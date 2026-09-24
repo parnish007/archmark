@@ -1,10 +1,10 @@
-# Dependencies / build
+# Dependencies / build (never track)
 node_modules/
 dist/
 build/
 *.tsbuildinfo
 
-# Test / reports
+# Test / reports (local)
 coverage/
 playwright-report/
 test-results/
@@ -21,15 +21,36 @@ Thumbs.db
 !.vscode/extensions.json
 .idea/
 
-# Env / secrets — never commit
+# Env / secrets — never commit (allow example)
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 
-# ArchMark local-only (never push to remote)
-research/
+# ArchMark cache
 .archmark-cache/
 
-# Benchmarks raw output (local-only perf data)
-/benchmarks/results/
+# Research: curated evidence IS tracked; raw/private scratch is local-only
+research/raw/
+research/tmp/
+research/cache/
+research/downloads/
+research/private/
+research/agent-scratch/
+research/**/*.raw.*
+research/**/*.tmp.*
+
+# Benchmarks: definitions/fixtures/scripts/budgets TRACKED; generated results ignored
+benchmarks/results/
+benchmarks/profiles/
+benchmarks/traces/
+*.bench.json
+*.trace.json
+
+# Temporary media / large raw artifacts (local-only)
+*.png.tmp
+*.mp4.tmp
+screenshots/tmp/
+videos/tmp/
+*.har

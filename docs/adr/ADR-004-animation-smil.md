@@ -1,6 +1,6 @@
 # ADR-004 — Animation: SMIL-primary, IR-isolated
 
-Status: accepted. Date: 2026-09-24.
+Status: PROVISIONAL / PENDING REAL-GITHUB CONFIRMATION. Date: 2026-09-24.
 
 ## Context
 GitHub strips JS; CSS survival contested; community SMIL cookbooks animate in README <img> via camo, but GitHub promises nothing.
