@@ -1,6 +1,6 @@
 # ArchMark ROADMAP
 
-Single package `archmark` v0. Local commits only; no push/publish without explicit approval. `research/` is local-only (gitignored, never pushed).
+Single package `archmark` v0. Local commits only; no push/publish without explicit approval. Curated `research/` is tracked and public; only `research/raw|tmp|cache|downloads|private|agent-scratch` is ignored.
 
 ## Phase 0 — feasibility (in progress)
 - [x] Competitor + platform + naming/license + visual councils (local research/, not pushed)

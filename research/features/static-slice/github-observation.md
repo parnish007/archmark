@@ -1,6 +1,10 @@
 # GitHub observation — probe/github-rendering (2026-09-24)
 
-Env: Node 24.14, Windows; browsers available: none in-env (Chromium/Firefox/Safari all untestable here).
+Repository state note: `probe/github-rendering` is currently GitHub's default branch ONLY because
+`main` has never been pushed. This is not the intended final configuration — intended: `main` as
+default, probe branch deleted after the gate. Do not link the probe branch as documentation.
+
+Env: Node 24.14, Windows; Playwright 1.63.0 + Chromium 153 / Firefox 155 / WebKit 26.6 (provisioned 2026-09-24).
 Route: github.com/parnish007/archmark/tree|blob/probe/github-rendering/probes/github (branch page + PROBE.md preview).
 Commit SHAs: acbbd3b (matrix) → b738f18 (cache v2). Date: 2026-09-24.
 

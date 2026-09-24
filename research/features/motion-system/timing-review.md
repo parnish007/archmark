@@ -1,7 +1,9 @@
 # Motion timing blind review — canonical flow (M1/M2/M3)
 
 Critics: motion-design, infovis, a11y, frontend-perf (blind).
-Scores (/5) — M1: continuity 5, timing 5, easing 5, clarity 5, calmness 5, hierarchy 5, loop 5, reduced-motion 3.
+Scores below are internal shorthand only — not scientific measurement of aesthetics. The selection
+rests on qualitative rationale and evidence, not the numbers.
+M1: continuity 5, timing 5, easing 5, clarity 5, calmness 5, hierarchy 5, loop 5, reduced-motion 3.
 M2: smoothness 5 but causality 3, clarity 2, hierarchy 2 (fade at origin misdirects; no arrival event).
 M3: reduced-motion 5, loop 5, but continuity 2, clarity 2 (400ms subliminal, frozen dot ambiguous).
 

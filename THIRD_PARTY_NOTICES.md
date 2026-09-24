@@ -1,6 +1,6 @@
 # Third-party notices (v0 draft — regenerate on lockfile change)
 
-Project license: Apache-2.0. `research/` local-only, never distributed.
+Project license: Apache-2.0. Curated research is tracked; raw/private scratch is never distributed.
 
 | Dep | Version | SPDX | URL |
 |---|---|---|---|

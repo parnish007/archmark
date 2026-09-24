@@ -1,6 +1,6 @@
 # ADR-004 — Animation: SMIL-primary, IR-isolated
 
-Status: PROVISIONAL / DELIVERY_CONFIRMED_MOTION_UNVERIFIED. Date: 2026-09-24.
+Status: DELIVERY_CONFIRMED / MOTION_UNVERIFIED. Date: 2026-09-24.
 
 Proven: SVG_DELIVERY_CONFIRMED (16 isolated probes serve intact via github.com + raw).
 Unproven: README_MOTION_UNVERIFIED (no rendered pixels observed changing over time in GitHub README;

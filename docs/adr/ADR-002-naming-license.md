@@ -3,7 +3,7 @@
 Status: accepted. Date: 2026-09-24.
 
 ## Context
-Need npm name, bin, license, remote policy. Live audit 2026-09-24 (evidence in local-only research/, never pushed).
+Need npm name, bin, license, remote policy. Live audit 2026-09-24 (evidence in tracked research/NAMING_LICENSE.md; raw scratch ignored).
 
 ## Evidence
 - registry.npmjs.org/archmark → 404 free; @archmark/cli, @archmark/core → 404 free.
@@ -12,7 +12,7 @@ Need npm name, bin, license, remote policy. Live audit 2026-09-24 (evidence in l
 - Deps: TS Apache-2.0, Langium/Vite/Vitest/React/SVGO MIT, Playwright Apache-2.0, elkjs EPL-2.0 OR GPL-3.0 (consume under EPL-2.0, external dep, ASF Category B).
 
 ## Decision
-Apache-2.0 (patent grant for infra tool). npm `archmark` primary (fallback @archmark/cli), bin `archmark`. Stay on parnish007/archmark; reserve npm org when credentials approved. THIRD_PARTY_NOTICES.md from first release. README footer non-affiliation note. No push/publish/PR without explicit human approval; local commits only. research/ gitignored local-only.
+Apache-2.0 (patent grant for infra tool). npm `archmark` primary (fallback @archmark/cli), bin `archmark`. Stay on parnish007/archmark; reserve npm org when credentials approved. THIRD_PARTY_NOTICES.md from first release. README footer non-affiliation note. No push/publish/PR without explicit human approval; local commits only. Curated research tracked; raw scratch ignored.
 
 ## Alternatives rejected
 - MIT: weaker patent grant for corporate adoption.

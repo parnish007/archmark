@@ -1,5 +1,8 @@
 # motion-system — blind review (M1/M2/M3) + recommendation
 
+Note: duration/easing values below are engineering parameters, not beauty measurements. No numeric
+score is used as proof of aesthetic quality; the recommendation rests on qualitative rationale.
+
 Council scope: canonical request flow only. Choreography under review: activate → wake → accelerate on real path → receive pulse → dependent → distinguishable response → settle. Ground truth: `animation-ir.ts` DUR micro200/flow500/traverse700/ambient1200/stagger90, EASE standard `0.2 0 0 1`; P-SMIL-01 (paced `animateMotion`+`mpath` on real `d`); P-SMIL-02 (`begin`-chained draw→traverse→pulse). Bans: no dash-march primary, no teleport/glow/bounce.
 
 ## M1 — crisp-technical

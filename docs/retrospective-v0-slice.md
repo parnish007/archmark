@@ -14,5 +14,5 @@ Debt: nested-group support (v0 errors, views later); full 21-icon optical pass +
 4-node build <2s cold (ELK init dominates); 12 tests pass; SVG 3.5KB (<100KB budget); check deterministic (hash-stable rebuild).
 
 ## Process
-Parallel research subagents saved ~1 day; red-team caught 16 issues pre-commit (path traversal + check-rewrites most valuable). Single-package + small commits kept bisectable. research/ gitignored local-only — verified `git check-ignore`.
+Parallel research subagents saved ~1 day; red-team caught 16 issues pre-commit (path traversal + check-rewrites most valuable). Single-package + small commits kept bisectable. research/ curated now tracked and public (correction 2026-09-24: "local-only" notes were stale).
 Next: Phase 0 real-README screenshots → SMIL backend → SVGO wiring → visual candidates A/B/C.
