@@ -35,7 +35,7 @@ api -> db
 <!-- archmark-render:start system -->
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./archmark.dark.svg" />
-  <img alt="system architecture: API → PostgreSQL → Frontend → User" src="./archmark.light.svg" />
+  <img alt="system architecture: User → Frontend → API → PostgreSQL" src="./archmark.light.svg" />
 </picture>
 <!-- archmark-render:end system -->
 

@@ -40,9 +40,35 @@ export function flowAssets(blockId: string, flowId: string): { light: string; da
 }
 
 export function describeArch(model: ArchModel, id: string): string {
-  // Concise generated description: "id architecture: A → B → C" (≤6 labels, truncated).
-  const names = [...model.nodes].sort((a, b) => a.id.localeCompare(b.id)).map((n) => n.label);
-  const shown = names.slice(0, 6).map((s) => (s.length > 24 ? `${s.slice(0, 23)}…` : s));
+  // Concise generated description in topology order (roots first, then dependents),
+  // not id-sorted: "id architecture: User → Frontend → API". Deterministic DFS with
+  // id-sorted adjacency; unreachable leftovers appended in id order. Truncated safely.
+  const labelOf = new Map(model.nodes.map((n) => [n.id, n.label]));
+  const short = (s: string) => (s.length > 24 ? `${[...s].slice(0, 23).join('')}…` : s);
+  const outgoing = new Map<string, string[]>();
+  const incoming = new Map<string, number>();
+  for (const n of model.nodes) {
+    outgoing.set(n.id, []);
+    incoming.set(n.id, 0);
+  }
+  for (const e of [...model.edges].sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to))) {
+    outgoing.get(e.from)?.push(e.to);
+    incoming.set(e.to, (incoming.get(e.to) ?? 0) + 1);
+  }
+  const order: string[] = [];
+  const seen = new Set<string>();
+  const visit = (id: string) => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    order.push(id);
+    for (const next of outgoing.get(id) ?? []) visit(next);
+  };
+  for (const n of [...model.nodes].sort((a, b) => a.id.localeCompare(b.id))) {
+    if ((incoming.get(n.id) ?? 0) === 0) visit(n.id);
+  }
+  for (const n of [...model.nodes].sort((a, b) => a.id.localeCompare(b.id))) visit(n.id);
+  const names = order.map((id) => short(labelOf.get(id) ?? id));
+  const shown = names.slice(0, 6);
   const more = names.length > 6 ? ` (+${names.length - 6} more)` : '';
   return `${id} architecture: ${shown.join(' → ')}${more}`;
 }
@@ -289,128 +315,139 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
       failed = true;
       continue;
     }
-    const scene = toScene(model, placed, b.id);
-    const light = renderStatic(scene, 'light', { title: `${b.id} architecture` });
-    const dark = renderStatic(scene, 'dark', { title: `${b.id} architecture` });
-    const pair = staticAssets(b.id);
-    let lf: string;
-    let df: string;
+    // Render stage guard: toScene/render/plan/timeline/animation throw on corrupt internals.
+    // Any throw becomes exit 1 with a message — never an unhandled rejection (exit-code contract).
+    // NOTE: this guard is a plain block (not a nested function) so `continue` keeps targeting
+    // the per-block loop and definite-assignment narrowing is preserved.
     try {
-      lf = validateSvgName(pair.light);
-      df = validateSvgName(pair.dark);
-    } catch (e) {
-      console.error((e as Error).message);
-      failed = true;
-      continue;
-    }
-    if (dryRun) {
-      const curL = existsSync(join(dir, lf)) ? readFileSync(join(dir, lf), 'utf8') : null;
-      const curD = existsSync(join(dir, df)) ? readFileSync(join(dir, df), 'utf8') : null;
-      if (curL !== light || curD !== dark) {
-        console.error(`archmark check: [stale] ${b.id} SVG stale. Run archmark build.`);
-        failed = true;
-      }
-      const tag = renderTag(b.id, `./${lf}`, `./${df}`, describeArch(model, b.id));
-      let next: string;
+      const renderPlaced = placed;
+      if (!renderPlaced) throw new Error('unreachable: placed checked above');
+      const scene = toScene(model, renderPlaced, b.id);
+      const light = renderStatic(scene, 'light', { title: `${b.id} architecture` });
+      const dark = renderStatic(scene, 'dark', { title: `${b.id} architecture` });
+      const pair = staticAssets(b.id);
+      let lf: string;
+      let df: string;
       try {
-        next = patchReadme(out, b.id, tag);
+        lf = validateSvgName(pair.light);
+        df = validateSvgName(pair.dark);
       } catch (e) {
         console.error((e as Error).message);
         failed = true;
         continue;
       }
-      if (next !== out) {
-        console.error(`archmark check: [stale] ${b.id} README region stale. Run archmark build.`);
-        failed = true;
-        out = next;
-      }
-    } else {
-      pendingWrites.push({ path: join(dir, lf), content: light }, { path: join(dir, df), content: dark });
-      try {
-        out = patchReadme(out, b.id, renderTag(b.id, `./${lf}`, `./${df}`, describeArch(model, b.id)));
-      } catch (e) {
-        console.error((e as Error).message);
-        failed = true;
-        continue;
-      }
-      console.log(`archmark: built ${b.id}: ${model.nodes.length} nodes, ${model.edges.length} edges → ${lf}, ${df}`);
-    }
-    // Named flows: each generates its own animated asset pair (archmark.<base>.<flow>.light/dark.svg)
-    // with its own owned README region `${id}.${flow}`. No "first flow wins" convention.
-    const smil = new SmilRenderer();
-    for (const flow of model.flows) {
-      const { plan, diagnostics: pdiags, fatal: pfatal } = planFlow(flow, model, b.id);
-      const {
-        timeline,
-        diagnostics: tdiags,
-        fatal: tfatal,
-      } = pfatal ? { timeline: { nodes: [], totalMs: 0 }, diagnostics: [], fatal: true } : compileTimeline(plan);
-      const fdiags = [...pdiags, ...tdiags];
-      for (const d of fdiags)
-        console.error(
-          `${readmePath}:${b.contentStartLine + d.line - 1}:${d.col} [${d.severity}] ${d.code} (flow "${flow.id}"): ${d.message}${d.hint ? `\n  hint: ${d.hint}` : ''}`,
-        );
-      if (fdiags.some((d) => d.severity === 'error') || pfatal || tfatal) {
-        failed = true;
-        continue;
-      }
-      const anim = compileAnimation(plan, timeline);
-      totalOps += anim.ops.length;
-      const aLight = smil.render(scene, anim, 'light', { title: `${b.id} ${flow.id} flow` });
-      const aDark = smil.render(scene, anim, 'dark', { title: `${b.id} ${flow.id} flow` });
-      const named = flowAssets(b.id, flow.id);
-      const regionId = named.region;
-      let alf: string;
-      let adf: string;
-      try {
-        alf = validateSvgName(named.light);
-        adf = validateSvgName(named.dark);
-      } catch (e) {
-        console.error((e as Error).message);
-        failed = true;
-        continue;
-      }
-      const labelOf = new Map(model.nodes.map((n) => [n.id, n.label]));
-      const lab = (id: string) => {
-        const s = labelOf.get(id) ?? id;
-        return s.length > 24 ? `${[...s].slice(0, 23).join('')}…` : s;
-      };
-      const alt = describeFlowAlt(
-        b.id,
-        flow.id,
-        flow.steps.map((s) => ({ from: lab(s.from), to: lab(s.to) })),
-      );
       if (dryRun) {
-        const curL = existsSync(join(dir, alf)) ? readFileSync(join(dir, alf), 'utf8') : null;
-        const curD = existsSync(join(dir, adf)) ? readFileSync(join(dir, adf), 'utf8') : null;
-        if (curL !== aLight || curD !== aDark) {
-          console.error(`archmark check: [stale] ${regionId} SVG stale. Run archmark build.`);
+        const curL = existsSync(join(dir, lf)) ? readFileSync(join(dir, lf), 'utf8') : null;
+        const curD = existsSync(join(dir, df)) ? readFileSync(join(dir, df), 'utf8') : null;
+        if (curL !== light || curD !== dark) {
+          console.error(`archmark check: [stale] ${b.id} SVG stale. Run archmark build.`);
           failed = true;
         }
+        const tag = renderTag(b.id, `./${lf}`, `./${df}`, describeArch(model, b.id));
         let next: string;
         try {
-          next = patchReadme(out, regionId, renderTag(regionId, `./${alf}`, `./${adf}`, alt));
+          next = patchReadme(out, b.id, tag);
         } catch (e) {
           console.error((e as Error).message);
           failed = true;
           continue;
         }
         if (next !== out) {
-          console.error(`archmark check: [stale] ${regionId} README region stale. Run archmark build.`);
+          console.error(`archmark check: [stale] ${b.id} README region stale. Run archmark build.`);
           failed = true;
           out = next;
         }
       } else {
-        pendingWrites.push({ path: join(dir, alf), content: aLight }, { path: join(dir, adf), content: aDark });
+        pendingWrites.push({ path: join(dir, lf), content: light }, { path: join(dir, df), content: dark });
         try {
-          out = patchReadme(out, regionId, renderTag(regionId, `./${alf}`, `./${adf}`, alt));
+          out = patchReadme(out, b.id, renderTag(b.id, `./${lf}`, `./${df}`, describeArch(model, b.id)));
         } catch (e) {
           console.error((e as Error).message);
           failed = true;
           continue;
         }
-        console.log(`archmark: built ${regionId}: ${anim.ops.length} events, ${anim.totalMs}ms → ${alf}, ${adf}`);
+        console.log(`archmark: built ${b.id}: ${model.nodes.length} nodes, ${model.edges.length} edges → ${lf}, ${df}`);
       }
+      // Named flows: each generates its own animated asset pair (archmark.<base>.<flow>.light/dark.svg)
+      // with its own owned README region `${id}.${flow}`. No "first flow wins" convention.
+      const smil = new SmilRenderer();
+      for (const flow of model.flows) {
+        const { plan, diagnostics: pdiags, fatal: pfatal } = planFlow(flow, model, b.id);
+        const {
+          timeline,
+          diagnostics: tdiags,
+          fatal: tfatal,
+        } = pfatal ? { timeline: { nodes: [], totalMs: 0 }, diagnostics: [], fatal: true } : compileTimeline(plan);
+        const fdiags = [...pdiags, ...tdiags];
+        for (const d of fdiags)
+          console.error(
+            `${readmePath}:${b.contentStartLine + d.line - 1}:${d.col} [${d.severity}] ${d.code} (flow "${flow.id}"): ${d.message}${d.hint ? `\n  hint: ${d.hint}` : ''}`,
+          );
+        if (fdiags.some((d) => d.severity === 'error') || pfatal || tfatal) {
+          failed = true;
+          continue;
+        }
+        const anim = compileAnimation(plan, timeline);
+        totalOps += anim.ops.length;
+        const aLight = smil.render(scene, anim, 'light', { title: `${b.id} ${flow.id} flow` });
+        const aDark = smil.render(scene, anim, 'dark', { title: `${b.id} ${flow.id} flow` });
+        const named = flowAssets(b.id, flow.id);
+        const regionId = named.region;
+        let alf: string;
+        let adf: string;
+        try {
+          alf = validateSvgName(named.light);
+          adf = validateSvgName(named.dark);
+        } catch (e) {
+          console.error((e as Error).message);
+          failed = true;
+          continue;
+        }
+        const labelOf = new Map(model.nodes.map((n) => [n.id, n.label]));
+        const lab = (id: string) => {
+          const s = labelOf.get(id) ?? id;
+          return s.length > 24 ? `${[...s].slice(0, 23).join('')}…` : s;
+        };
+        const alt = describeFlowAlt(
+          b.id,
+          flow.id,
+          flow.steps.map((s) => ({ from: lab(s.from), to: lab(s.to) })),
+        );
+        if (dryRun) {
+          const curL = existsSync(join(dir, alf)) ? readFileSync(join(dir, alf), 'utf8') : null;
+          const curD = existsSync(join(dir, adf)) ? readFileSync(join(dir, adf), 'utf8') : null;
+          if (curL !== aLight || curD !== aDark) {
+            console.error(`archmark check: [stale] ${regionId} SVG stale. Run archmark build.`);
+            failed = true;
+          }
+          let next: string;
+          try {
+            next = patchReadme(out, regionId, renderTag(regionId, `./${alf}`, `./${adf}`, alt));
+          } catch (e) {
+            console.error((e as Error).message);
+            failed = true;
+            continue;
+          }
+          if (next !== out) {
+            console.error(`archmark check: [stale] ${regionId} README region stale. Run archmark build.`);
+            failed = true;
+            out = next;
+          }
+        } else {
+          pendingWrites.push({ path: join(dir, alf), content: aLight }, { path: join(dir, adf), content: aDark });
+          try {
+            out = patchReadme(out, regionId, renderTag(regionId, `./${alf}`, `./${adf}`, alt));
+          } catch (e) {
+            console.error((e as Error).message);
+            failed = true;
+            continue;
+          }
+          console.log(`archmark: built ${regionId}: ${anim.ops.length} events, ${anim.totalMs}ms → ${alf}, ${adf}`);
+        }
+      }
+    } catch (e) {
+      console.error(`archmark: error: failed to render "${b.id}": ${(e as Error).message}`);
+      failed = true;
     }
   }
   if (dryRun) {
@@ -421,7 +458,6 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
     console.log('archmark check: fresh.');
     return 0;
   }
-  if (failed) return 1;
   // Per-document aggregate cap: 50 blocks × 500 events could otherwise explode output.
   // (Per-flow caps already enforced in plan/timeline compilers.)
   const MAX_TOTAL_OPS = 2000;

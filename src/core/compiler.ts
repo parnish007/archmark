@@ -102,12 +102,18 @@ export function compile(ast: Ast): CompileResult {
     return { id: stableEdgeId(e.from, e.to, n), ...e };
   });
   // Dedupe on the SLUGGED id (slug collisions across distinct pairs get suffixes).
+  // Loop until fresh: a natural `x-2` must never collide with a suffixed `x → x-2`.
   {
-    const seen = new Map<string, number>();
+    const seen = new Set<string>();
     for (const e of edges) {
-      const n = (seen.get(e.id) ?? 0) + 1;
-      seen.set(e.id, n);
-      if (n > 1) e.id = `${e.id}-${n}`;
+      let candidate = e.id;
+      let n = 1;
+      while (seen.has(candidate)) {
+        n += 1;
+        candidate = `${e.id}-${n}`;
+      }
+      seen.add(candidate);
+      e.id = candidate;
     }
   }
   if (edges.length > MAX_EDGES) {

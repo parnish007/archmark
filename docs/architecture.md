@@ -15,6 +15,10 @@ Dependency direction is one-way inward. Enforced by boundary tests
 rendering; renderers import no parsers/compilers/markdown/CLI; parser imports nothing
 project-internal except IR types.
 
+Interrupt behavior (documented, not transacted): SIGINT before the commit phase changes
+nothing (planning is in-memory); during commit, rerun `archmark build` to repair
+(idempotent). No elaborate signal handling by design.
+
 Key contracts:
 
 - Determinism: sorted inputs, ELK seed 42, 2dp rounding, stable edge IDs

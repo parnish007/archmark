@@ -5,7 +5,7 @@ import { FAIL_ECHO_MS, MOTION_TOKENS, type MotionToken } from '../animation/toke
 // set, begin-chaining, fill=freeze. Receives no DSL/AST/README. Static base is shared
 // scene serialization (no fork); first frame is complete without animation (fallback).
 import type { Scene } from '../core/layout.js';
-import { escapeXmlAttr, escapeXmlText } from '../core/suggest.js';
+import { escapeXmlText } from '../core/suggest.js';
 import { IdScope } from './ids.js';
 import { renderSceneLayer } from './scene-svg.js';
 import { type ThemeName, themeFor } from './svg.js';
