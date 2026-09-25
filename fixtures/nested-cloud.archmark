@@ -1,0 +1,18 @@
+cloud aws "AWS"
+service edge "Edge"
+service api "API"
+service worker2 "Worker US"
+database primary "Primary DB"
+database replica "Replica"
+queue bus "Bus"
+
+group prod "Production" {
+service worker1 "Worker EU"
+}
+
+api -> primary
+api -> bus
+bus -> worker1
+bus -> worker2
+primary -> replica
+edge -> api

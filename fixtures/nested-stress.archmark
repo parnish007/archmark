@@ -1,0 +1,22 @@
+service edge "Edge"
+database shared "Shared DB"
+queue bus "Bus"
+
+group alpha "Alpha Team Production Environment" {
+service a1 "Alpha One With A Long Name"
+service a2 "A2"
+}
+
+group beta "Beta" {
+service b1 "Beta One"
+service b2 "Beta Two With A Long Name Too"
+}
+
+edge -> a1
+a1 -> b1
+b1 -> a2
+a2 -> b2
+b2 -> shared
+a1 -> bus
+bus -> b1
+edge -> shared
