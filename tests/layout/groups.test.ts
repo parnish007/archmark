@@ -3,6 +3,11 @@ import { parse } from '../../src/language/parser.js';
 import { compile } from '../../src/core/compiler.js';
 import { ElkLayout, toScene } from '../../src/core/layout.js';
 
+function need<T>(v: T | undefined, what: string): T {
+  if (v === undefined) throw new Error(`test fixture missing ${what}`);
+  return v;
+}
+
 function build(src: string) {
   const { ast } = parse(src);
   const { model, diagnostics, fatal } = compile(ast);
@@ -16,14 +21,20 @@ describe('group truthfulness (adversarial)', () => {
     expect(fatal).toBe(false);
     const placed = await new ElkLayout().layout(model);
     const scene = toScene(model, placed);
-    const g = scene.groups[0]!;
-    const b = scene.nodes.find((n) => n.id === 'b')!;
+    const g = need(scene.groups[0], 'group');
+    const b = need(
+      scene.nodes.find((n) => n.id === 'b'),
+      'node b',
+    );
     const cx = b.x + b.w / 2;
     const cy = b.y + b.h / 2;
     const inside = cx > g.x && cx < g.x + g.w && cy > g.y && cy < g.y + g.h;
     expect(inside).toBe(false);
     for (const m of ['a', 'c']) {
-      const n = scene.nodes.find((x) => x.id === m)!;
+      const n = need(
+        scene.nodes.find((x) => x.id === m),
+        `node ${m}`,
+      );
       expect(n.x).toBeGreaterThanOrEqual(g.x - 1);
       expect(n.x + n.w).toBeLessThanOrEqual(g.x + g.w + 1);
     }
@@ -53,6 +64,6 @@ describe('group truthfulness (adversarial)', () => {
     const self = build('service a "A"\na -> a\n');
     const ps = await new ElkLayout().layout(self.model);
     const ss = toScene(self.model, ps);
-    expect(ss.edges[0]!.d.startsWith('M')).toBe(true);
+    expect(need(ss.edges[0], 'edge').d.startsWith('M')).toBe(true);
   }, 30000);
 });
