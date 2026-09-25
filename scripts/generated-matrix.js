@@ -40,7 +40,10 @@ flow outage {
 // Build fixtures with the CURRENT checkout's CLI (dist must be built first).
 const dir = mkdtempSync(join(tmpdir(), 'am-matrix-'));
 writeFileSync(join(dir, 'README.md'), DSL);
-execFileSync(process.execPath, [fileURLToPath(new URL('../dist/cli/cli.js', import.meta.url)), 'build', 'README.md'], { cwd: dir, stdio: 'pipe' });
+execFileSync(process.execPath, [fileURLToPath(new URL('../dist/cli/cli.js', import.meta.url)), 'build', 'README.md'], {
+  cwd: dir,
+  stdio: 'pipe',
+});
 
 const FILES = {
   'canonical-request': join(dir, 'archmark.mx.order.light.svg'),

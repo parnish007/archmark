@@ -3,14 +3,20 @@
 > Not affiliated with Archmark® (archmark.co) nor sparkymat/ArchMark bookmark manager.
 
 ArchMark lets you describe architecture as concise text and generates publication-quality
-diagrams (deterministic light/dark SVG) plus semantic flow animations (SMIL, verified in
-Chromium/Firefox/WebKit) for your README. No cloud account. Local, offline, deterministic.
+diagrams (deterministic light/dark SVG) plus semantic flow animations (SMIL subset locally
+verified animating in Chromium/Firefox/WebKit; CI browser runs pending — see docs/adr/ADR-004). No cloud account. Local, offline, deterministic.
 
 ```bash
-npx archmark init
-npx archmark build
-npx archmark check
+git clone https://github.com/parnish007/archmark.git
+cd archmark
+pnpm install --frozen-lockfile
+pnpm build
+node ./dist/cli/cli.js init
+node ./dist/cli/cli.js build
+node ./dist/cli/cli.js check
 ```
+
+(`npx archmark` will work after the first npm release; until then build from source.)
 
 v0 is CLI-only: no programmatic library API is exposed or supported (`exports` is
 empty by design; deep imports into `dist/` are not a public contract).

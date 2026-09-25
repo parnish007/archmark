@@ -17,8 +17,11 @@ Architecture rules (enforced by tests):
 - One-way dependencies: language → core → flow → animation → renderer; markdown/CLI outside.
 - No glue: new integrations need an explicit contract type, not reshaping at call sites.
 - Deterministic output: sorted, seeded, rounded, no timestamps (see `archmark check`).
-- Diagnostics carry stable codes (AM1xxx parser, AM11xx/12xx compiler, AM21xx markdown,
-  AM31xx/32xx flows). New error paths need codes + tests.
+- Diagnostics carry stable codes (AM1xxx parser, AM11xx/AM12xx compiler, AM21xx markdown,
+  AM31xx/AM32xx flows). New error paths need codes + tests.
+- Golden policy: no checked-in golden SVG snapshots by design (determinism is asserted via
+  rebuild-identity tests instead). If goldens are ever introduced, update them only alongside
+  reviewed visual changes — never blind auto-accept runs.
 - Public tree stays clean: research scratch, probes, screenshots, traces belong in
   `.archmark-internal/` (ignored) — never in commits.
 

@@ -45,7 +45,7 @@ flow request {
 <!-- archmark-render:start hero.request -->
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./archmark.hero.request.dark.svg" />
-  <img alt="hero request flow: user → frontend, frontend → api, api → model, api → db" src="./archmark.hero.request.light.svg" />
+  <img alt="hero request flow: User → Frontend, Frontend → API, API → AI Model, API → PostgreSQL" src="./archmark.hero.request.light.svg" />
 </picture>
 <!-- archmark-render:end hero.request -->
 

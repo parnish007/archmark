@@ -1,6 +1,6 @@
-# ArchMark SPEC v0.1 (draft — Phase 0 + static vertical slice)
+# ArchMark SPEC v0
 
-Status: draft. License: Apache-2.0. Runtime baseline: Node 24 LTS, pnpm, strict TS, ELK.js 0.12 (EPL-2.0, external dep), Vitest, Playwright (later). Single package `archmark`, bin `archmark`.
+Status: normative for v0. DSL stability follows package semver (pre-1.0: may break with a minor). License: Apache-2.0. Runtime baseline: Node 24 LTS, pnpm, strict TS, ELK.js 0.12 (EPL-2.0, external dep), Vitest, Playwright (later). Single package `archmark`, bin `archmark`.
 
 ## 1. Goals / non-goals
 Goals: text → beautiful deterministic static SVG (+ light/dark) embedded in README via committed assets + `<picture>`; semantic arch model; excellent errors; offline local build; animation IR as abstraction (SMIL backend deferred until Phase 0 probes pass in real README).
@@ -62,7 +62,7 @@ Deterministic: same input+version+config → byte-identical (sorted attrs, sorte
 ```
 Flow IR (semantic ops, no timing) → Timeline (ordered events + deps + token timing) → Animation IR (typed ops + motion tokens) → SMIL renderer (verified subset)
 ```
-Renderer backends: static (frozen first frame, always) + SMIL (`animate`/`animateTransform`/`animateMotion`+`mpath`/`set`/`begin`/freeze, keySplines easing, begin-chained, stagger 90ms). Motion tokens (`src/animation/tokens.ts`) are the single timing source. Static complete without animation; M3-equivalent first frame is the reduced-motion output. No animation coords in DSL; no SVG leakage into semantic model.
+Renderer backends: static (frozen first frame, always) + SMIL (`animate`/`animateTransform`/`animateMotion`+`mpath`/`set`/`begin`/freeze, keySplines easing from tokens, stagger 90ms). Timeline dependencies compile to absolute `begin` times in dependency order (robust against dangling id refs; equivalent in effect to begin-chaining). Motion tokens (`src/animation/tokens.ts`) are the single timing source. Static complete without animation; the frozen first frame is the reduced-motion output (embed the static pair for fully static display). No animation coords in DSL; no SVG leakage into semantic model.
 
 ## 10. README integration
 Source lives in `<!-- archmark id=... \n DSL \n-->`; generated region `<!-- archmark-render:start id --> <picture>… </picture> <!-- archmark-render:end id -->` replaced by byte-range only. Never reserialize rest of README. `build` writes `archmark.light.svg`/`archmark.dark.svg` (or per-id) + patches README. `check` verifies freshness (hash compare) for CI. Deterministic diffs.

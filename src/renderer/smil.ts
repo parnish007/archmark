@@ -72,7 +72,9 @@ export class SmilRenderer implements AnimationRenderer {
     switch (op.kind) {
       case 'traverse': {
         const pathId = edgePaths.get(op.target);
-        if (!pathId) return `<!-- unresolved edge ${escapeXmlText(op.target)} -->`;
+        // Fail loudly (never a silent comment): validated pipelines always resolve targets.
+        // Comments are not a semantic protocol and `--` in ids would break XML anyway.
+        if (!pathId) throw new Error(`smil: animation references unknown edge "${op.target}"`);
         const hollow = op.style === 'hollow';
         const r = hollow ? 4 : 6;
         const fill = hollow ? 'none' : accent;
@@ -87,7 +89,7 @@ export class SmilRenderer implements AnimationRenderer {
       }
       case 'pulse': {
         const n = nodes.get(op.target);
-        if (!n) return `<!-- unresolved node ${escapeXmlText(op.target)} -->`;
+        if (!n) throw new Error(`smil: animation references unknown node "${op.target}"`);
         const cx = Math.round((n.x + n.w / 2) * 100) / 100;
         const cy = Math.round((n.y + n.h / 2) * 100) / 100;
         // Easing comes from the op's motion token (single source), never hardcoded.
@@ -116,12 +118,12 @@ export class SmilRenderer implements AnimationRenderer {
         return `${base}<!--${mid}-->`;
       }
       case 'activate': {
-        if (!op.target) return `<!--settle ${mid}-->`;
+        if (!op.target) throw new Error('smil: activate op has no target node');
         const n = nodes.get(op.target);
-        if (!n) return `<!-- unresolved node ${escapeXmlText(op.target)} -->`;
+        if (!n) throw new Error(`smil: animation references unknown node "${op.target}"`);
         const cx = Math.round((n.x + n.w / 2) * 100) / 100;
         const cy = Math.round((n.y + n.h / 2) * 100) / 100;
-        return `<circle cx="${cx}" cy="${cy}" r="10" fill="${accent}" opacity="0"><animate attributeName="opacity" values="0;0.25;0" keyTimes="0;0.5;1" dur="${d}" begin="${b}" fill="freeze" calcMode="spline" keySplines="0.2 0 0 1;0.2 0 0 1"/></circle><!--${mid}-->`;
+        return `<circle cx="${cx}" cy="${cy}" r="10" fill="${accent}" opacity="0"><animate attributeName="opacity" values="0;0.25;0" keyTimes="0;0.5;1" dur="${d}" begin="${b}" fill="freeze" ${easeAttrs(op.token, 2)}/></circle><!--${mid}-->`;
       }
       default: {
         // Exhaustive: future AnimOpKind values fail compile here first (no silent empty output).

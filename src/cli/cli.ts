@@ -1,6 +1,17 @@
 #!/usr/bin/env node
 // archmark CLI v0: init / build / check. Thin orchestration over core.
-import { existsSync, fsyncSync, openSync, closeSync, lstatSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  fsyncSync,
+  openSync,
+  closeSync,
+  lstatSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { compileAnimation } from '../animation/ir.js';
@@ -98,14 +109,13 @@ export function assertNoSymlink(path: string, stat: (p: string) => Stats = lstat
 
 const VERSION: string = (() => {
   // Single source: package.json version (works in checkout and packed tarball alike).
-  try {
-    const require = createRequire(import.meta.url);
-    const pkg = require('../../package.json') as { version?: unknown };
-    if (typeof pkg.version === 'string') return pkg.version;
-  } catch {
-    /* fall through */
+  // Throws (never a bogus fallback): a version we cannot prove is worse than none.
+  const require = createRequire(import.meta.url);
+  const pkg = require('../../package.json') as { version?: unknown };
+  if (typeof pkg.version !== 'string' || pkg.version.length === 0) {
+    throw new Error('archmark: cannot determine version from package.json');
   }
-  return '0.0.0-unknown';
+  return pkg.version;
 })();
 
 function printHelp(): void {
@@ -177,8 +187,13 @@ flow request {
     return 0;
   }
   if (cmd === 'build' || cmd === 'check') {
+    const target = argv[1] ?? 'README.md';
+    if (target.startsWith('-')) {
+      console.error(`archmark: error: unknown flag "${target}". Usage: archmark <init|build|check> [README.md]`);
+      return 2;
+    }
     const dryRun = cmd === 'check';
-    return buildOrCheck(argv[1] ?? 'README.md', dryRun, deps);
+    return buildOrCheck(target, dryRun, deps);
   }
   console.error('Usage: archmark <init|build|check> [README.md]');
   return 2;
@@ -254,7 +269,9 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
     const all = [...pd, ...cd];
     // Block-relative parser lines become file-relative; block id is always shown.
     for (const d of all)
-      console.error(`${readmePath}:${b.contentStartLine + d.line - 1}:${d.col} [${d.severity}] ${d.code} (block "${b.id}"): ${d.message}${d.hint ? `\n  hint: ${d.hint}` : ''}`);
+      console.error(
+        `${readmePath}:${b.contentStartLine + d.line - 1}:${d.col} [${d.severity}] ${d.code} (block "${b.id}"): ${d.message}${d.hint ? `\n  hint: ${d.hint}` : ''}`,
+      );
     const hasError = all.some((d) => d.severity === 'error') || fatal;
     if (hasError) {
       failed = true;
@@ -358,7 +375,11 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
         const s = labelOf.get(id) ?? id;
         return s.length > 24 ? `${[...s].slice(0, 23).join('')}…` : s;
       };
-      const alt = describeFlowAlt(b.id, flow.id, flow.steps.map((s) => ({ from: lab(s.from), to: lab(s.to) })));
+      const alt = describeFlowAlt(
+        b.id,
+        flow.id,
+        flow.steps.map((s) => ({ from: lab(s.from), to: lab(s.to) })),
+      );
       if (dryRun) {
         const curL = existsSync(join(dir, alf)) ? readFileSync(join(dir, alf), 'utf8') : null;
         const curD = existsSync(join(dir, adf)) ? readFileSync(join(dir, adf), 'utf8') : null;
@@ -447,4 +468,3 @@ const isMain = process.argv[1]?.endsWith('cli.js') ?? false;
 if (isMain) {
   run(process.argv.slice(2)).then((code) => process.exit(code));
 }
-

@@ -35,8 +35,10 @@ choreography (base pulse + two staggered echoes at +90/+180ms). Do not read more
 ## Static-first accessibility
 
 Every animated file's first frame is the complete static diagram (`<title>`/`<desc>`/`role="img"`).
-Reduced-motion users get identical meaning; use `archmark build` static pair to embed
-non-animated output explicitly.
+There is no browser-runtime `prefers-reduced-motion` switch inside the SVG (GitHub-safe
+mechanisms for that were not proven); instead, embed the static pair wherever fully static
+output is wanted — it carries identical meaning. Wording matters: we provide a static
+fallback/output, not an automatic reduced-motion switch.
 
 ## Verification
 

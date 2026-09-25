@@ -19,12 +19,13 @@ export function truncate(label: string, max = 22): string {
 
 export function edgeMidpoint(d: string): { x: number; y: number } {
   // Length-weighted midpoint over segments (stable labels on long orthogonal edges).
+  // Empty/invalid path data is corrupt layout input: fail loudly, never label at origin.
   const nums = d
     .replace(/^[M]/, '')
     .split('L')
     .map((s) => s.trim().split(/\s+/).map(Number))
     .filter((p): p is [number, number] => p.length === 2 && p.every((v) => Number.isFinite(v)));
-  if (nums.length === 0) return { x: 0, y: 0 };
+  if (nums.length === 0) throw new Error('edgeMidpoint: empty path data');
   const first = nums[0] as [number, number];
   if (nums.length === 1) return { x: first[0], y: first[1] };
   let total = 0;
@@ -57,7 +58,7 @@ export function renderSceneLayer(scene: Scene, t: Theme, ids: IdScope, arrowId: 
     if (!g.truthful) continue; // suppressed: never render false grouping
     const gid = ids.unique('group', g.id);
     parts.push(
-      `<g id="${gid}"><rect x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" rx="12" fill="${t.grid}" opacity="0.35" stroke="${t.muted}" stroke-width="1" stroke-dasharray="6 4"/><text x="${g.x + 16}" y="${g.y + 22}" font-family="${FONT_UI}" font-size="10" font-weight="600" letter-spacing="0.06em" fill="${t.muted}">${escapeXmlText(g.label.toUpperCase().slice(0, 40))}</text></g>`,
+      `<g id="${gid}"><title>${escapeXmlText(g.label)} (group)</title><rect x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" rx="12" fill="${t.grid}" opacity="0.35" stroke="${t.muted}" stroke-width="1" stroke-dasharray="6 4"/><text x="${g.x + 16}" y="${g.y + 22}" font-family="${FONT_UI}" font-size="10" font-weight="600" letter-spacing="0.06em" fill="${t.muted}">${escapeXmlText(g.label.toLocaleUpperCase('en').slice(0, 40))}</text></g>`,
     );
   }
   for (const e of [...scene.edges].sort((a, b) => a.id.localeCompare(b.id))) {

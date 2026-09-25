@@ -25,7 +25,7 @@ src/language/ parser.ts
 src/core/ ir.ts compiler.ts layout.ts suggest.ts diagnostics.ts
 src/flow/ plan.ts timeline.ts
 src/animation/ tokens.ts ir.ts
-src/renderer/ tokens.ts icons.ts icon-candidates.ts candidates.ts ids.ts scene-svg.ts svg.ts smil.ts
+src/renderer/ tokens.ts icons.ts ids.ts scene-svg.ts svg.ts smil.ts
 src/markdown/ scanner.ts extract.ts
 src/cli/ cli.ts
 tests/{integration,markdown,animation,security}/

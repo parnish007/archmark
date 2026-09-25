@@ -49,11 +49,13 @@ const IDENT_SRC = '[A-Za-z_][A-Za-z0-9_-]*';
 const RE_FLOW_OPEN = new RegExp(`^flow\\s+(${IDENT_SRC})\\s*(\\{?)\\s*(?://.*)?$`);
 const RE_GROUP_OPEN = new RegExp(`^group\\s+(${IDENT_SRC})(?:\\s+"((?:[^"\\\\]|\\\\.)*)")?\\s*(\\{?)\\s*(?://.*)?$`);
 const RE_COMP = new RegExp(`^(${IDENT_SRC})\\s+(${IDENT_SRC})(?:\\s+"((?:[^"\\\\]|\\\\.)*)")?\\s*(?://.*)?$`);
-const RE_EDGE = new RegExp(`^(${IDENT_SRC})\\s*->\\s*(${IDENT_SRC})(?:\\s*\\{([^}]*)\\})?\\s*(?://.*)?$`);
+const RE_EDGE = new RegExp(`^(${IDENT_SRC})\\s*->\\s*(${IDENT_SRC})(?:\\s*\\{((?:[^"{}]|"(?:[^"\\\\]|\\\\.)*")*)\\})?\\s*(?://.*)?$`);
 const RE_CLOSE = /^\}\s*(?:\/\/.*)?$/;
 
 function unescapeLabel(s: string): string {
-  return s.replace(/\\(.)/g, '$1').slice(0, 512);
+  // No length cap here: MAX_LABEL truncation + warning belongs to the compiler (AM1105),
+  // which must see the full label to diagnose. Input size is bounded by MAX_SOURCE_BYTES.
+  return s.replace(/\\(.)/g, '$1');
 }
 
 export function parse(source: string): { ast: Ast; diagnostics: Diagnostic[] } {
@@ -104,6 +106,17 @@ export function parse(source: string): { ast: Ast; diagnostics: Diagnostic[] } {
         return;
       }
       const f: AstFlow = { id: m[1] as string, steps: [], line };
+      if (stack.length > 0) {
+        diagnostics.push({
+          code: 'AM1013',
+          line,
+          col: 1,
+          severity: 'error',
+          message: `flow "${m[1]}" opened inside a ${stack[stack.length - 1]?.type} block; flows and groups cannot nest.`,
+          hint: 'Close the enclosing block first.',
+        });
+        return;
+      }
       ast.flows.push(f);
       stack.push({ type: 'flow', flow: f });
       return;
@@ -121,13 +134,13 @@ export function parse(source: string): { ast: Ast; diagnostics: Diagnostic[] } {
         });
         return;
       }
-      if (stack.some((s) => s.type === 'group')) {
+      if (stack.length > 0) {
         diagnostics.push({
-          code: 'AM1004',
+          code: stack.some((s) => s.type === 'group') ? 'AM1004' : 'AM1013',
           line,
           col: 1,
           severity: 'error',
-          message: 'Nested groups are not supported in v0 (max 1 level).',
+          message: 'Nested groups are not supported in v0 (max 1 level, no groups inside flows).',
           hint: 'Flatten; nesting lands with views.',
         });
         return;
@@ -185,6 +198,17 @@ export function parse(source: string): { ast: Ast; diagnostics: Diagnostic[] } {
     }
     m = t.match(RE_COMP);
     if (m && (NODE_KINDS as readonly string[]).includes(m[1] as string)) {
+      if (curFlow()) {
+        diagnostics.push({
+          code: 'AM1013',
+          line,
+          col: 1,
+          severity: 'error',
+          message: `Component "${m[2]}" declared inside a flow; flows contain only steps.`,
+          hint: 'Declare components outside the flow block.',
+        });
+        return;
+      }
       const comp: AstComponent = { kind: m[1] as NodeKind, id: m[2] as string, label: unescapeLabel(m[3] ?? (m[2] as string)), line };
       const g = curGroup();
       if (g) g.members.push(comp);
@@ -205,7 +229,7 @@ export function parse(source: string): { ast: Ast; diagnostics: Diagnostic[] } {
       return;
     }
     diagnostics.push({
-      code: 'AM1001',
+      code: 'AM1012',
       line,
       col: 1,
       severity: 'error',
@@ -226,18 +250,25 @@ export function parse(source: string): { ast: Ast; diagnostics: Diagnostic[] } {
     });
   }
 
-  const seen = new Map<string, number>();
-  for (const c of [...ast.components, ...ast.groups.flatMap((g) => g.members)]) {
-    if (seen.has(c.id))
+  // Duplicate ids across ALL namespaces: components, group members, group ids, flow ids.
+  // A group id colliding with a node id (or two flows sharing an id) is the same class of
+  // error as duplicate components — one namespace per document (AM1001).
+  const seen = new Map<string, { line: number; what: string }>();
+  const claim = (id: string, line: number, what: string) => {
+    const prev = seen.get(id);
+    if (prev) {
       diagnostics.push({
         code: 'AM1001',
-        line: c.line,
+        line,
         col: 1,
         severity: 'error',
-        message: `Duplicate component id "${c.id}" (first at line ${seen.get(c.id)}).`,
-        hint: 'Rename one; ids must be unique. Second definition ignored.',
+        message: `Duplicate id "${id}" (${what} at line ${line}; ${prev.what} at line ${prev.line}).`,
+        hint: 'Rename one; ids must be unique per document. Second definition ignored.',
       });
-    else seen.set(c.id, c.line);
-  }
+    } else seen.set(id, { line, what });
+  };
+  for (const c of [...ast.components, ...ast.groups.flatMap((g) => g.members)]) claim(c.id, c.line, 'component');
+  for (const g of ast.groups) claim(g.id, g.line, 'group');
+  for (const f of ast.flows) claim(f.id, f.line, 'flow');
   return { ast, diagnostics };
 }

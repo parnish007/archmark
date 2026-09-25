@@ -137,7 +137,7 @@ export function compile(ast: Ast): CompileResult {
     }
     if (e.from === e.to)
       diagnostics.push({
-        code: 'AM1105',
+        code: 'AM1109',
         line: e.line,
         col: 1,
         severity: 'warn',
@@ -147,6 +147,27 @@ export function compile(ast: Ast): CompileResult {
   }
 
   const groups = ast.groups.map((g) => ({ id: g.id, label: g.label, members: g.members.map((m) => m.id) }));
+  {
+    // One group per node, validated HERE (not only in layout): paying ELK cost before
+    // rejecting is wasteful, and the diagnostic belongs to semantic validation.
+    const memberOf = new Map<string, string>();
+    for (const g of ast.groups) {
+      for (const m of g.members) {
+        const prev = memberOf.get(m.id);
+        if (prev) {
+          diagnostics.push({
+            code: 'AM1110',
+            line: m.line,
+            col: 1,
+            severity: 'error',
+            message: `Node "${m.id}" is in groups "${prev}" and "${g.id}"; v0 supports one group per node.`,
+            hint: 'Move the node to a single group.',
+          });
+          fatal = true;
+        } else memberOf.set(m.id, g.id);
+      }
+    }
+  }
   for (const g of ast.groups) {
     if (g.members.length === 0) {
       diagnostics.push({

@@ -51,6 +51,8 @@ unknown nodes rejected (AM1203); empty flows rejected (AM3104). Parallel `api ->
 edges are distinguished by stable `from--to[#n]` ids; a flow step resolves deterministically
 to the first in `(from, to, label)` sorted order (documented v0 semantic — declare distinct
 edges deliberately; future qualifiers may refine this).
+`error`/`failure` steps name the failure locus (still a declared edge) but emit only a fail
+pulse — no traverse, encoding "no healthy transfer happened".
 
 ## Errors
 
