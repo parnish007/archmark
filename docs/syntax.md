@@ -1,0 +1,55 @@
+# ArchMark syntax (v0)
+
+```archmark
+actor user "User"
+browser frontend "Frontend"
+api api "API"
+model model "AI Model"
+database db "PostgreSQL"
+
+user -> frontend
+frontend -> api
+api -> model
+api -> db
+
+flow request {
+  user -> frontend
+  frontend -> api
+  api -> model
+  api -> db { type: write }
+}
+```
+
+## Components
+
+`<kind> <id> "Label"` — kinds: actor service app database cache queue gateway worker
+storage model external boundary cluster cloud region browser mobile api server agent
+function container network filesystem. Ids `[A-Za-z_][A-Za-z0-9_-]*`, unique per document
+(AM1001). Forward references allowed. Labels ≤512 chars, truncated in diagrams (full in `<title>`).
+
+## Connections
+
+`<from> -> <to>` with optional `{ label: "verb", type: request }`.
+Unknown endpoints suggest corrections (AM1203). Self-edges draw as loops (warning).
+
+## Groups
+
+```archmark
+group prod "Production" {
+  service api "API"
+}
+```
+
+One level only (AM1004 otherwise); empty groups rejected (AM1108); one group per node.
+Groups lay out as ELK compound containers — membership is truthful by construction (P5/P6 gates).
+
+## Flows
+
+`flow <id> { a -> b ... }` — steps typed request (default) response write read event
+error failure recovery. Strict: every step needs a declared architecture edge (AM3102);
+unknown nodes rejected (AM1203); empty flows rejected (AM3104).
+
+## Errors
+
+Coded diagnostics: AM10xx parser, AM11xx/AM12xx compiler, AM21xx Markdown regions,
+AM31xx/AM32xx flows/timeline. `archmark check` fails CI on any error.
