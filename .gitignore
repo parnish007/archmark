@@ -1,0 +1,59 @@
+# Dependencies / build (never track)
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Test / reports (local)
+coverage/
+playwright-report/
+test-results/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Env / secrets — never commit (allow example)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ArchMark cache
+.archmark-cache/
+
+# Private engineering workspace (never tracked)
+.archmark-internal/
+
+# Research: curated evidence IS tracked; raw/private scratch is local-only
+research/raw/
+research/tmp/
+research/cache/
+research/downloads/
+research/private/
+research/agent-scratch/
+research/**/*.raw.*
+research/**/*.tmp.*
+
+# Benchmarks: definitions/fixtures/scripts/budgets TRACKED; generated results ignored
+benchmarks/results/
+benchmarks/profiles/
+benchmarks/traces/
+*.bench.json
+*.trace.json
+
+# Temporary media / large raw artifacts (local-only)
+*.png.tmp
+*.mp4.tmp
+screenshots/tmp/
+videos/tmp/
+*.har

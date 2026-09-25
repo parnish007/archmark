@@ -1,0 +1,59 @@
+{
+  "name": "archmark",
+  "version": "0.1.0",
+  "description": "Architecture-as-code with beautiful deterministic diagrams and semantic animations for GitHub READMEs",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "archmark": "./dist/cli/cli.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint src tests scripts",
+    "format": "biome format --write src tests scripts",
+    "format:check": "biome format src tests scripts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "node ./dist/cli/cli.js check"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parnish007/archmark.git"
+  },
+  "homepage": "https://github.com/parnish007/archmark#readme",
+  "bugs": {
+    "url": "https://github.com/parnish007/archmark/issues"
+  },
+  "keywords": [
+    "architecture",
+    "diagrams",
+    "github",
+    "readme",
+    "svg",
+    "smil",
+    "architecture-as-code"
+  ],
+  "packageManager": "pnpm@11.24.0",
+  "dependencies": {
+    "elkjs": "0.12.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@types/node": "^22.7.4",
+    "pixelmatch": "7.1.0",
+    "playwright": "1.63.0",
+    "pngjs": "7.0.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
