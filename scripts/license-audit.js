@@ -34,7 +34,7 @@ for (const r of rows) {
 }
 console.log(`checked ${rows.length} direct packages, ${bad} flags`);
 const notices = readFileSync('THIRD_PARTY_NOTICES.md', 'utf8');
-for (const dep of ['elkjs', 'vitest', 'typescript', 'playwright', 'biome', 'pngjs', 'pixelmatch']) {
+for (const dep of ['elkjs', 'vitest', 'typescript', 'playwright', 'biome', 'pngjs', 'pixelmatch', 'fast-xml-parser', 'types/node']) {
   if (!notices.toLowerCase().includes(dep)) {
     console.log(`MISSING from notices: ${dep}`);
     bad++;

@@ -12,6 +12,7 @@ Project license: Apache-2.0.
 | playwright | 1.63.0 | Apache-2.0 | https://github.com/microsoft/playwright |
 | pngjs | 7.0.0 | MIT | https://github.com/lukeapage/pngjs |
 | pixelmatch | 7.1.0 | ISC | https://github.com/mapbox/pixelmatch |
+| fast-xml-parser | 4.5.1 | MIT | https://github.com/NaturalIntelligence/fast-xml-parser |
 
 Full EPL-2.0 text: https://www.eclipse.org/legal/epl-2.0/. Vendor icons: none bundled v0 (separate opt-in package later).
 CI must enforce: only MIT/Apache-2.0/ISC/BSD/EPL-2.0; fail on GPL/AGPL.

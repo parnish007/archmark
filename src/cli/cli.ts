@@ -239,7 +239,13 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
     console.error(`archmark: error: README not found: ${readmePath}`);
     return 1;
   }
-  const md = readFileSync(abs, 'utf8');
+  let md: string;
+  try {
+    md = readFileSync(abs, 'utf8');
+  } catch (e) {
+    console.error(`archmark: error: cannot read ${readmePath} (${(e as Error).message})`);
+    return 1;
+  }
   // Fail-closed gate: malformed regions / duplicate ids → no mutation at all.
   const pre = scan(md);
   for (const d of pre.diagnostics)
