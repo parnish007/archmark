@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // archmark CLI v0: init / build / check. Thin orchestration over core.
-import { existsSync, fsyncSync, openSync, closeSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, fsyncSync, openSync, closeSync, lstatSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { compileAnimation } from '../animation/ir.js';
@@ -13,6 +13,20 @@ import { parse } from '../language/parser.js';
 import { PatchError, extractBlocks, patchReadme, renderTag, resolveReadmeInCwd, scan, validateSvgName } from '../markdown/extract.js';
 import { SmilRenderer, describeFlowAlt } from '../renderer/smil.js';
 import { renderStatic } from '../renderer/svg.js';
+
+export function diagramBase(blockId: string): string {
+  return blockId === 'system' ? 'archmark' : `archmark.${blockId}`;
+}
+
+export function staticAssets(blockId: string): { light: string; dark: string } {
+  const base = diagramBase(blockId);
+  return { light: `${base}.light.svg`, dark: `${base}.dark.svg` };
+}
+
+export function flowAssets(blockId: string, flowId: string): { light: string; dark: string; region: string } {
+  const base = diagramBase(blockId);
+  return { light: `${base}.${flowId}.light.svg`, dark: `${base}.${flowId}.dark.svg`, region: `${blockId}.${flowId}` };
+}
 
 export function describeArch(model: ArchModel, id: string): string {
   // Concise generated description: "id architecture: A → B → C" (≤6 labels, truncated).
@@ -47,21 +61,119 @@ function writeFileAtomic(path: string, content: string): void {
   renameSync(tmp, path);
 }
 
-export async function run(argv: string[], deps: { layout?: LayoutEngine } = {}): Promise<number> {
+export interface FileSink {
+  writeFileAtomic(path: string, content: string): void;
+  readdir(dir: string): string[];
+}
+
+export const realFileSink: FileSink = {
+  writeFileAtomic(path: string, content: string): void {
+    writeFileAtomic(path, content);
+  },
+  readdir(dir: string): string[] {
+    return readdirSync(dir);
+  },
+};
+
+export interface RunDeps {
+  layout?: LayoutEngine;
+  fs?: FileSink;
+}
+
+import { createRequire } from 'node:module';
+import type { Stats } from 'node:fs';
+
+// Symlink guard: path.resolve() traversal checks do not see through symlinks, so a hostile
+// repository could otherwise redirect README/output writes outside the project. Fail closed.
+// `stat` is injectable for tests (defaults to lstatSync: never follows links).
+export function assertNoSymlink(path: string, stat: (p: string) => Stats = lstatSync): void {
+  let st: Stats;
+  try {
+    st = stat(path);
+  } catch {
+    return; // missing files cannot be hostile links; creation uses O_EXCL tmp + rename
+  }
+  if (st.isSymbolicLink()) throw new Error(`Refusing to write through symlink: ${path}.`);
+}
+
+const VERSION: string = (() => {
+  // Single source: package.json version (works in checkout and packed tarball alike).
+  try {
+    const require = createRequire(import.meta.url);
+    const pkg = require('../../package.json') as { version?: unknown };
+    if (typeof pkg.version === 'string') return pkg.version;
+  } catch {
+    /* fall through */
+  }
+  return '0.0.0-unknown';
+})();
+
+function printHelp(): void {
+  console.log(`archmark ${VERSION} — architecture-as-code for GitHub READMEs
+
+Usage:
+  archmark [build] [README.md]   render (default command is build)
+  archmark init [README.md]      scaffold an ArchMark block (includes a flow example)
+  archmark build [README.md]     render diagrams + flows, patch owned regions
+  archmark check [README.md]     exit 1 if generated output is stale (CI gate)
+  archmark --help                this text
+  archmark --version             print version
+
+build writes archmark.<id>.light/dark.svg (+ archmark.<id>.<flow>.* per flow)
+next to the README and patches only ArchMark-owned marker regions.
+The 'system' id is the default: its files omit '.system' (archmark.light.svg).
+Writes are planned fully in memory first; nothing changes unless all diagrams validate.
+Exit codes: 0 ok, 1 error or [stale] output, 2 usage error. Errors carry stable
+codes (AM1xxx parser, AM11xx/AM12xx model, AM21xx regions, AM31xx/AM32xx flows).`);
+}
+
+export async function run(argv: string[], deps: RunDeps = {}): Promise<number> {
   const cmd = argv[0] ?? 'build';
+  if (cmd === '--help' || cmd === '-h' || cmd === 'help') {
+    printHelp();
+    return 0;
+  }
+  if (cmd === '--version' || cmd === '-V' || cmd === 'version') {
+    console.log(VERSION);
+    return 0;
+  }
+  // Flags are not positional file arguments: `init --help` must not create a file named --help.
+  if (cmd.startsWith('-')) {
+    console.error(`archmark: error: unknown flag "${cmd}". Usage: archmark <init|build|check> [README.md]`);
+    return 2;
+  }
   if (cmd === 'init') {
     const target = argv[1] ?? 'README.md';
+    if (target.startsWith('-')) {
+      console.error(`archmark: error: unknown flag "${target}". Usage: archmark init [README.md]`);
+      return 2;
+    }
     const abs = resolveReadmeInCwd(target);
-    const sample = `# ArchMark demo\n\n<!-- archmark id=system\nactor user "User"\nservice frontend "Frontend"\nservice api "API"\ndatabase db "PostgreSQL"\n\nuser -> frontend\nfrontend -> api\napi -> db\n-->\n`;
+    const sample = `# ArchMark demo
+
+<!-- archmark id=system
+actor user "User"
+service api "API"
+database db "PostgreSQL"
+
+user -> api
+api -> db
+
+flow request {
+  user -> api
+  api -> db { type: write }
+}
+-->
+`;
     if (existsSync(abs)) {
       const md = readFileSync(abs, 'utf8');
       if (md.includes('archmark')) {
-        console.log(`archmark: ${target} already contains archmark block.`);
+        console.log(`archmark: ${target} already contains an archmark block (no-op).`);
         return 0;
       }
       writeFileSync(abs, `${md.trimEnd()}\n\n${sample.split('\n').slice(2).join('\n')}`);
     } else writeFileSync(abs, sample);
-    console.log(`archmark: init → ${target}`);
+    console.log(`archmark: init → ${target} (run: archmark build)`);
     return 0;
   }
   if (cmd === 'build' || cmd === 'check') {
@@ -72,10 +184,12 @@ export async function run(argv: string[], deps: { layout?: LayoutEngine } = {}):
   return 2;
 }
 
-async function buildOrCheck(readmePath: string, dryRun: boolean, deps: { layout?: LayoutEngine }): Promise<number> {
+async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps): Promise<number> {
+  const sink = deps.fs ?? realFileSink;
   let abs: string;
   try {
     abs = resolveReadmeInCwd(readmePath);
+    assertNoSymlink(abs);
   } catch (e) {
     console.error(`archmark: error: ${(e as Error).message}`);
     return 1;
@@ -113,14 +227,14 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: { layout?
   {
     const seen = new Map<string, string>();
     for (const b of blocks) {
-      const base = (b.id === 'system' ? 'archmark' : `archmark.${b.id}`).toLowerCase();
-      for (const f of [`${base}.light.svg`, `${base}.dark.svg`]) {
-        const prev = seen.get(f);
+      const pair = staticAssets(b.id);
+      for (const f of [pair.light, pair.dark]) {
+        const prev = seen.get(f.toLowerCase());
         if (prev) {
           console.error(`archmark: error: output collision on "${f}" (ids "${prev}" vs "${b.id}").`);
           return 1;
         }
-        seen.set(f, b.id);
+        seen.set(f.toLowerCase(), b.id);
       }
     }
   }
@@ -131,14 +245,16 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: { layout?
   // ArchMark itself generated (validated above) are written; anything else is a collision error.
   let out = md;
   let failed = false;
+  let totalOps = 0;
   const dir = dirname(abs);
   const pendingWrites: { path: string; content: string }[] = [];
   for (const b of blocks) {
     const { ast, diagnostics: pd } = parse(b.source);
     const { model, diagnostics: cd, fatal } = compile(ast);
     const all = [...pd, ...cd];
+    // Block-relative parser lines become file-relative; block id is always shown.
     for (const d of all)
-      console.error(`${readmePath}:${d.line}:${d.col} [${d.severity}]: ${d.message}${d.hint ? `\n  hint: ${d.hint}` : ''}`);
+      console.error(`${readmePath}:${b.contentStartLine + d.line - 1}:${d.col} [${d.severity}] ${d.code} (block "${b.id}"): ${d.message}${d.hint ? `\n  hint: ${d.hint}` : ''}`);
     const hasError = all.some((d) => d.severity === 'error') || fatal;
     if (hasError) {
       failed = true;
@@ -159,12 +275,12 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: { layout?
     const scene = toScene(model, placed, b.id);
     const light = renderStatic(scene, 'light', { title: `${b.id} architecture` });
     const dark = renderStatic(scene, 'dark', { title: `${b.id} architecture` });
-    const base = b.id === 'system' ? 'archmark' : `archmark.${b.id}`;
+    const pair = staticAssets(b.id);
     let lf: string;
     let df: string;
     try {
-      lf = validateSvgName(`${base}.light.svg`);
-      df = validateSvgName(`${base}.dark.svg`);
+      lf = validateSvgName(pair.light);
+      df = validateSvgName(pair.dark);
     } catch (e) {
       console.error((e as Error).message);
       failed = true;
@@ -174,7 +290,7 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: { layout?
       const curL = existsSync(join(dir, lf)) ? readFileSync(join(dir, lf), 'utf8') : null;
       const curD = existsSync(join(dir, df)) ? readFileSync(join(dir, df), 'utf8') : null;
       if (curL !== light || curD !== dark) {
-        console.error(`archmark check: ${b.id} SVG stale.`);
+        console.error(`archmark check: [stale] ${b.id} SVG stale. Run archmark build.`);
         failed = true;
       }
       const tag = renderTag(b.id, `./${lf}`, `./${df}`, describeArch(model, b.id));
@@ -187,7 +303,7 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: { layout?
         continue;
       }
       if (next !== out) {
-        console.error(`archmark check: ${b.id} README region stale.`);
+        console.error(`archmark check: [stale] ${b.id} README region stale. Run archmark build.`);
         failed = true;
         out = next;
       }
@@ -214,31 +330,40 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: { layout?
       } = pfatal ? { timeline: { nodes: [], totalMs: 0 }, diagnostics: [], fatal: true } : compileTimeline(plan);
       const fdiags = [...pdiags, ...tdiags];
       for (const d of fdiags)
-        console.error(`${readmePath}:${d.line}:${d.col} [${d.severity}] ${d.code}: ${d.message}${d.hint ? `\n  hint: ${d.hint}` : ''}`);
+        console.error(
+          `${readmePath}:${b.contentStartLine + d.line - 1}:${d.col} [${d.severity}] ${d.code} (flow "${flow.id}"): ${d.message}${d.hint ? `\n  hint: ${d.hint}` : ''}`,
+        );
       if (fdiags.some((d) => d.severity === 'error') || pfatal || tfatal) {
         failed = true;
         continue;
       }
       const anim = compileAnimation(plan, timeline);
+      totalOps += anim.ops.length;
       const aLight = smil.render(scene, anim, 'light', { title: `${b.id} ${flow.id} flow` });
       const aDark = smil.render(scene, anim, 'dark', { title: `${b.id} ${flow.id} flow` });
-      const regionId = `${b.id}.${flow.id}`;
+      const named = flowAssets(b.id, flow.id);
+      const regionId = named.region;
       let alf: string;
       let adf: string;
       try {
-        alf = validateSvgName(`${base}.${flow.id}.light.svg`);
-        adf = validateSvgName(`${base}.${flow.id}.dark.svg`);
+        alf = validateSvgName(named.light);
+        adf = validateSvgName(named.dark);
       } catch (e) {
         console.error((e as Error).message);
         failed = true;
         continue;
       }
-      const alt = describeFlowAlt(b.id, flow.id, flow.steps);
+      const labelOf = new Map(model.nodes.map((n) => [n.id, n.label]));
+      const lab = (id: string) => {
+        const s = labelOf.get(id) ?? id;
+        return s.length > 24 ? `${[...s].slice(0, 23).join('')}…` : s;
+      };
+      const alt = describeFlowAlt(b.id, flow.id, flow.steps.map((s) => ({ from: lab(s.from), to: lab(s.to) })));
       if (dryRun) {
         const curL = existsSync(join(dir, alf)) ? readFileSync(join(dir, alf), 'utf8') : null;
         const curD = existsSync(join(dir, adf)) ? readFileSync(join(dir, adf), 'utf8') : null;
         if (curL !== aLight || curD !== aDark) {
-          console.error(`archmark check: ${regionId} SVG stale.`);
+          console.error(`archmark check: [stale] ${regionId} SVG stale. Run archmark build.`);
           failed = true;
         }
         let next: string;
@@ -250,7 +375,7 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: { layout?
           continue;
         }
         if (next !== out) {
-          console.error(`archmark check: ${regionId} README region stale.`);
+          console.error(`archmark check: [stale] ${regionId} README region stale. Run archmark build.`);
           failed = true;
           out = next;
         }
@@ -276,12 +401,36 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: { layout?
     return 0;
   }
   if (failed) return 1;
-  for (const w of pendingWrites) writeFileAtomic(w.path, w.content);
-  if (out !== md) writeFileAtomic(abs, out);
+  // Per-document aggregate cap: 50 blocks × 500 events could otherwise explode output.
+  // (Per-flow caps already enforced in plan/timeline compilers.)
+  const MAX_TOTAL_OPS = 2000;
+  if (totalOps > MAX_TOTAL_OPS) {
+    console.error(`archmark: error: document compiles to ${totalOps} animation events (> ${MAX_TOTAL_OPS}). Split flows across documents.`);
+    return 1;
+  }
+  if (failed) return 1;
+  // Commit phase: symlink-guard every target first (fail before any write), then write all.
+  // Honest guarantee: nothing changes unless planning/validation succeeded; a mid-commit
+  // failure or crash can leave a mix that rerunning `archmark build` repairs (idempotent).
+  // No manifest/journal: the rerun-repairs model is sufficient and simpler (documented).
+  try {
+    for (const w of pendingWrites) assertNoSymlink(w.path);
+    if (out !== md) assertNoSymlink(abs);
+  } catch (e) {
+    console.error(`archmark: error: ${(e as Error).message}`);
+    return 1;
+  }
+  try {
+    for (const w of pendingWrites) sink.writeFileAtomic(w.path, w.content);
+    if (out !== md) sink.writeFileAtomic(abs, out);
+  } catch (e) {
+    console.error(`archmark: error: commit failed (${(e as Error).message}); rerun build to repair.`);
+    return 1;
+  }
   // Stale-asset notice (warn-only, never auto-delete: ownership of pre-existing files unproven).
   try {
     const planned = new Set(pendingWrites.map((w) => w.path.toLowerCase()));
-    for (const f of readdirSync(dir)) {
+    for (const f of sink.readdir(dir)) {
       if (/^archmark(\..+)?\.svg$/i.test(f) && !planned.has(join(dir, f).toLowerCase())) {
         console.error(
           `archmark: warning: stale generated asset "${f}" not produced by this build (diagram renamed/removed?). Delete manually if unowned.`,
@@ -298,3 +447,4 @@ const isMain = process.argv[1]?.endsWith('cli.js') ?? false;
 if (isMain) {
   run(process.argv.slice(2)).then((code) => process.exit(code));
 }
+

@@ -12,6 +12,9 @@ npx archmark build
 npx archmark check
 ```
 
+v0 is CLI-only: no programmatic library API is exposed or supported (`exports` is
+empty by design; deep imports into `dist/` are not a public contract).
+
 <!-- archmark id=system
 actor user "User"
 service frontend "Frontend"

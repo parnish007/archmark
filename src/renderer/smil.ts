@@ -123,8 +123,10 @@ export class SmilRenderer implements AnimationRenderer {
         const cy = Math.round((n.y + n.h / 2) * 100) / 100;
         return `<circle cx="${cx}" cy="${cy}" r="10" fill="${accent}" opacity="0"><animate attributeName="opacity" values="0;0.25;0" keyTimes="0;0.5;1" dur="${d}" begin="${b}" fill="freeze" calcMode="spline" keySplines="0.2 0 0 1;0.2 0 0 1"/></circle><!--${mid}-->`;
       }
-      case 'set': {
-        return `<set attributeName="visibility" to="visible" begin="${b}" /><!--${mid}-->`;
+      default: {
+        // Exhaustive: future AnimOpKind values fail compile here first (no silent empty output).
+        const _exhaustive: never = op.kind;
+        return `<!-- unsupported op ${_exhaustive} -->`;
       }
     }
   }

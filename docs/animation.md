@@ -26,6 +26,12 @@ Tokens (`src/animation/tokens.ts`): requestTraverse 700ms, responseTraverse 500m
 activation/receivePulse 200ms, stateTransition 400ms, stagger 90ms, settle 200ms.
 One play + freeze; no indefinite loops; no filters/glow/bounce/dash tricks.
 
+## Parallelism, precisely
+
+There is no general parallel DSL syntax in v0. The timeline's dependency structure supports
+ordered sequencing; the only user-expressible fan-out is the `event` step's broadcast
+choreography (base pulse + two staggered echoes at +90/+180ms). Do not read more into it.
+
 ## Static-first accessibility
 
 Every animated file's first frame is the complete static diagram (`<title>`/`<desc>`/`role="img"`).

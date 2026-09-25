@@ -24,6 +24,7 @@ export interface SourceBlock {
   source: string;
   startLine: number;
   firstLine: number;
+  contentStartLine: number;
   dupLine?: number;
 }
 export interface GeneratedBlock {
@@ -188,7 +189,15 @@ export function scanMarkdown(text: string): MarkdownRegionIndex {
       const hasNewline = c.body.includes('\n');
       const content: ByteRange = hasNewline ? { start: headEnd + 1, end: c.end - 3 } : { start: c.end - 3, end: c.end - 3 };
       const source = hasNewline ? text.slice(content.start, content.end).trim() : '';
-      sources.push({ id, comment: { start: c.start, end: c.end }, content, source, startLine: c.startLine, firstLine: c.startLine });
+      sources.push({
+        id,
+        comment: { start: c.start, end: c.end },
+        content,
+        source,
+        startLine: c.startLine,
+        firstLine: c.startLine,
+        contentStartLine: lineOf(lines, content.start),
+      });
       continue;
     }
     let m = RE_GEN_START.exec(body);

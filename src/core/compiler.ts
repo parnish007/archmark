@@ -194,12 +194,15 @@ export function compile(ast: Ast): CompileResult {
         fatal = true;
       }
       if (!ids.has(s.from) || !ids.has(s.to)) {
+        const bad = !ids.has(s.from) ? s.from : s.to;
+        const sug = suggest(bad, [...ids]);
         diagnostics.push({
           code: 'AM1203',
           line: s.line,
           col: 1,
           severity: 'error',
-          message: `Flow "${f.id}" references unknown node in ${s.from} -> ${s.to}.`,
+          message: `Flow "${f.id}" references unknown node "${bad}" in ${s.from} -> ${s.to}.`,
+          hint: sug ? `Did you mean "${sug}"?` : 'Declare the component first.',
         });
         fatal = true;
       }

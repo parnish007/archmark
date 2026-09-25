@@ -66,4 +66,39 @@ describe('group truthfulness (adversarial)', () => {
     const ss = toScene(self.model, ps);
     expect(need(ss.edges[0], 'edge').d.startsWith('M')).toBe(true);
   }, 30000);
+
+  it('stress: 3 siblings, cross-boundary cycle, self-edge, solo member (round 2)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const src = readFileSync('fixtures/groups-stress.archmark', 'utf8');
+    const { model, fatal } = build(src);
+    expect(fatal).toBe(false);
+    const placed = await new ElkLayout().layout(model);
+    const scene = toScene(model, placed);
+    // Invariants hold on output: every group truthful, members inside, overlap <5%.
+    expect(scene.groups.length).toBe(3);
+    for (const g of scene.groups) {
+      expect(g.truthful).toBe(true);
+      expect(Number.isFinite(g.x + g.y + g.w + g.h)).toBe(true);
+      expect(g.w).toBeGreaterThan(0);
+    }
+    const byId = new Map(scene.nodes.map((n) => [n.id, n]));
+    const members: Record<string, string[]> = { alpha: ['a1', 'a2'], beta: ['b1'], gamma: ['g1'] };
+    for (const g of scene.groups) {
+      for (const m of members[g.id] ?? []) {
+        const n = need(byId.get(m), m);
+        expect(n.x).toBeGreaterThanOrEqual(g.x - 1);
+        expect(n.x + n.w).toBeLessThanOrEqual(g.x + g.w + 1);
+      }
+    }
+    // Nonmember 'edge' and 'shared' must not significantly overlap any group.
+    for (const id of ['edge', 'shared']) {
+      const n = need(byId.get(id), id);
+      for (const g of scene.groups) {
+        const ix = Math.max(0, Math.min(n.x + n.w, g.x + g.w) - Math.max(n.x, g.x));
+        const iy = Math.max(0, Math.min(n.y + n.h, g.y + g.h) - Math.max(n.y, g.y));
+        const frac = (ix * iy) / Math.min(n.w * n.h, g.w * g.h);
+        expect(frac).toBeLessThan(0.05);
+      }
+    }
+  }, 60000);
 });

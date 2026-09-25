@@ -1,5 +1,10 @@
 # Changelog
 
+Versioning (pre-1.0): package stays `0.1.0` until first npm publication. Patch = fixes,
+minor = backward-compatible features, breaking = anything before 1.0 may break without a
+major bump (0.x semantics). DSL stability follows package version; no separate DSL version
+machinery (deliberate: unnecessary complexity at this size).
+
 ## Unreleased (v0)
 
 Initial public core (not yet published to npm):

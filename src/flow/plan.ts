@@ -98,6 +98,11 @@ export function planFlow(flow: ArchFlow, model: ArchModel, archId: string): { pl
       case 'recovery':
         ops.push({ op: 'pulse', node: s.to, style: 'recover' });
         break;
+      default: {
+        // Exhaustive: future FlowStepType values fail compile here (no silent generic traverse).
+        const _exhaustive: never = kind;
+        throw new Error(`planFlow: unhandled step type "${_exhaustive}" (AM3206)`);
+      }
     }
     steps.push({ stepId, ops });
   });

@@ -1,8 +1,12 @@
 name: ci
+# Status: configured for Ubuntu + Windows, Node 24. Remote runs not yet observed —
+# do not claim "verified" until green runs exist. macOS intentionally untested (unclaimed).
 on:
   push:
-    branches: [main, 'probe/**']
+    branches: [main]
   pull_request:
+permissions:
+  contents: read
 jobs:
   build:
     strategy:

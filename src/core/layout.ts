@@ -169,13 +169,44 @@ export class ElkLayout implements LayoutEngine {
     };
     walk(g.children, 0, 0);
     const pedges: PlacedEdge[] = (g.edges ?? []).map((e) => {
-      // Hierarchical ELK edges can return MULTIPLE sections; concatenate all of them.
-      // A missing section list means ELK dropped the edge: fail loudly, never draw at origin.
+      // Hierarchical ELK edges can return MULTIPLE sections; concatenate only when joints
+      // meet (end[i] == start[i+1] within epsilon). Disjoint sections would draw false
+      // topology, so they fail closed instead.
       const sections = e.sections ?? [];
       if (sections.length === 0) throw new LayoutError(`Edge "${e.id}" has no geometry from layout.`);
-      const pts = sections.flatMap((s) => [s.startPoint, ...(s.bendPoints ?? []), s.endPoint]);
+      const pts: { x: number; y: number }[] = [];
+      sections.forEach((s, i) => {
+        const chain: { x: number; y: number }[] = [s.startPoint, ...(s.bendPoints ?? []), s.endPoint];
+        if (i > 0) {
+          const prev = pts[pts.length - 1] as { x: number; y: number };
+          const joint = chain[0] as { x: number; y: number };
+          if (Math.hypot(joint.x - prev.x, joint.y - prev.y) > 0.5) {
+            throw new LayoutError(`Edge "${e.id}" has disjoint route sections; refusing false path.`);
+          }
+          chain.shift();
+        }
+        pts.push(...chain);
+      });
       return { id: e.id, points: pts.map((p) => ({ x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 })) };
     });
+    // Float validation: no NaN/Infinity/non-positive dimensions reach the scene graph.
+    // Missing nodes or corrupt geometry fail closed — never a plausible false diagram.
+    for (const n of [...nodes, ...groups]) {
+      for (const v of [n.x, n.y, n.w, n.h]) {
+        if (!Number.isFinite(v)) throw new LayoutError(`Non-finite geometry for "${n.id}"; refusing corrupt layout.`);
+      }
+      if (n.w <= 0 || n.h <= 0) throw new LayoutError(`Non-positive size for "${n.id}"; refusing corrupt layout.`);
+      for (const v of [n.x, n.y, n.w, n.h]) {
+        if (Math.abs(v) > 1e6) throw new LayoutError(`Geometry magnitude overflow for "${n.id}"; refusing corrupt layout.`);
+      }
+    }
+    for (const e of pedges) {
+      for (const p of e.points) {
+        if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || Math.abs(p.x) > 1e6 || Math.abs(p.y) > 1e6) {
+          throw new LayoutError(`Non-finite path geometry for edge "${e.id}"; refusing corrupt layout.`);
+        }
+      }
+    }
     // Invariant gates P5/P6 (fail-closed truthfulness): members strictly inside group rect;
     // no nonmember center inside any group rect. Violation → LayoutError (build fails, no false render).
     {
@@ -200,6 +231,17 @@ export class ElkLayout implements LayoutEngine {
         for (const pg of groups) {
           if (cx > pg.x && cx < pg.x + pg.w && cy > pg.y && cy < pg.y + pg.h) {
             throw new LayoutError(`Nonmember "${n.id}" falls inside group "${pg.id}"; refusing false grouping.`);
+          }
+          // Area overlap invariant (stronger than center): a nonmember rectangle must not
+          // significantly overlap a group even when its center lies outside.
+          const ix = Math.max(0, Math.min(n.x + n.w, pg.x + pg.w) - Math.max(n.x, pg.x));
+          const iy = Math.max(0, Math.min(n.y + n.h, pg.y + pg.h) - Math.max(n.y, pg.y));
+          const overlap = ix * iy;
+          const denom = Math.min(n.w * n.h, pg.w * pg.h);
+          if (denom > 0 && overlap / denom >= 0.05) {
+            throw new LayoutError(
+              `Nonmember "${n.id}" overlaps group "${pg.id}" by ${Math.round((overlap / denom) * 100)}%; refusing false grouping.`,
+            );
           }
         }
       }
@@ -307,7 +349,13 @@ export function toScene(model: ArchModel, placed: PlacedGraph, title?: string): 
   const nodes: SceneNode[] = [...model.nodes]
     .sort((a, b) => a.id.localeCompare(b.id))
     .map((n) => {
-      const p = byId.get(n.id) ?? { x: 0, y: 0, w: 140, h: 60 };
+      // No zero-coordinate fallback: a missing placed node is corrupt layout, fail closed.
+      const p = byId.get(n.id);
+      if (!p) throw new LayoutError(`Node "${n.id}" missing from layout output.`);
+      for (const v of [p.x, p.y, p.w, p.h]) {
+        if (!Number.isFinite(v)) throw new LayoutError(`Non-finite geometry for node "${n.id}".`);
+      }
+      if (p.w <= 0 || p.h <= 0) throw new LayoutError(`Non-positive size for node "${n.id}".`);
       return { id: n.id, kind: n.kind, label: n.label, x: p.x, y: p.y, w: p.w, h: p.h };
     });
   const pe = new Map(placed.edges.map((e) => [e.id, e]));

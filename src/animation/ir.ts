@@ -4,7 +4,7 @@ import type { FlowPlan, SemanticOp } from '../flow/plan.js';
 import type { Timeline } from '../flow/timeline.js';
 import { type MotionToken, tokenForOp } from './tokens.js';
 
-export type AnimOpKind = 'traverse' | 'pulse' | 'activate' | 'set';
+export type AnimOpKind = 'traverse' | 'pulse' | 'activate';
 export interface AnimOp {
   id: string;
   kind: AnimOpKind;
@@ -22,16 +22,15 @@ export interface AnimationIR {
 }
 
 export function compileAnimation(plan: FlowPlan, timeline: Timeline): AnimationIR {
-  // Plan ops and timeline nodes align 1:1 except the trailing settle node.
+  // Plan ops and timeline nodes align 1:1 except the trailing settle node, which is
+  // TIMING-ONLY metadata (extends totalMs) and produces NO renderer operation. Renderers
+  // must never depend on comments: settle disappears before renderer input entirely.
   const flat: SemanticOp[] = plan.steps.flatMap((s) => s.ops);
   const ops: AnimOp[] = [];
   timeline.nodes.forEach((n, i) => {
-    if (n.id.endsWith('.settle')) {
-      ops.push({ id: n.id, kind: 'activate', target: '', token: 'settle', startMs: n.startMs, durMs: n.durMs, style: 'settle' });
-      return;
-    }
+    if (n.id.endsWith('.settle')) return;
     const pop = flat[i];
-    if (!pop) return;
+    if (!pop) throw new Error(`compileAnimation: plan/timeline skew at node "${n.id}" (AM3207)`);
     const token = tokenForOp(pop);
     const kind: AnimOpKind = pop.op === 'traverse' ? 'traverse' : pop.op === 'pulse' ? 'pulse' : 'activate';
     const target = pop.op === 'traverse' ? pop.edge : pop.op === 'settle' ? '' : pop.node;

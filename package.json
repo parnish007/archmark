@@ -7,6 +7,7 @@
   "bin": {
     "archmark": "./dist/cli/cli.js"
   },
+  "exports": {},
   "files": [
     "dist/",
     "README.md",
@@ -47,6 +48,7 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@types/node": "^22.7.4",
+    "fast-xml-parser": "4.5.1",
     "pixelmatch": "7.1.0",
     "playwright": "1.63.0",
     "pngjs": "7.0.0",

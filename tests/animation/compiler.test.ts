@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { compileAnimation } from '../../src/animation/ir.js';
 import { MOTION_TOKENS } from '../../src/animation/tokens.js';
-import { compile, stableEdgeId } from '../../src/core/compiler.js';
+import { compile } from '../../src/core/compiler.js';
 import { ElkLayout, toScene } from '../../src/core/layout.js';
 import { planFlow } from '../../src/flow/plan.js';
 import { compileTimeline } from '../../src/flow/timeline.js';
@@ -53,7 +53,14 @@ describe('flow semantics', () => {
       .edges.map((e) => e.id)
       .sort();
     expect(a).toEqual(b);
-    expect(stableEdgeId('a-b', 'c', 1)).not.toBe(`${stableEdgeId('a_b', 'c', 1)}-x`); // documented below
+  });
+  it('edge identity survives label changes and member removal', () => {
+    const v1 = modelOf('service a "A"\nservice q "Q"\na -> q { label: "commands" }\na -> q { label: "events" }\n');
+    const v2 = modelOf('service a "A"\nservice q "Q"\na -> q { label: "renamed" }\na -> q { label: "events" }\n');
+    // Pair ordinals (not labels) determine identity: ids stable across renames.
+    expect(v1.edges.map((e) => e.id)).toEqual(v2.edges.map((e) => e.id));
+    const v3 = modelOf('service a "A"\nservice q "Q"\na -> q { label: "events" }\n');
+    expect(v3.edges.map((e) => e.id)).toEqual(['a--q']);
   });
 });
 
@@ -116,6 +123,30 @@ describe('animation IR + SMIL', () => {
     expect(failRings).toBeGreaterThanOrEqual(2); // double ring, not color-only
     expect(s2).toMatch(/stroke-width="3"/); // thick recover ring
   }, 30000);
+});
+
+describe('settle semantics (timing-only, no renderer protocol)', () => {
+  it('compileAnimation emits no settle ops; SVG has no settle comments', async () => {
+    const model = modelOf(SRC);
+    const { plan } = planFlow(need(model.flows[0], 'flow'), model, 'system');
+    const { timeline } = compileTimeline(plan);
+    expect(timeline.nodes.some((n) => n.id.endsWith('.settle'))).toBe(true); // timing covered
+    expect(timeline.totalMs).toBeGreaterThan(0);
+    const anim = compileAnimation(plan, timeline);
+    expect(anim.ops.some((o) => o.style === 'settle' || o.token === 'settle')).toBe(false);
+    const placed = await new ElkLayout().layout(model);
+    const svg = new SmilRenderer().render(toScene(model, placed), anim, 'light');
+    expect(svg).not.toMatch(/settle/);
+  }, 30000);
+
+  it('ambiguous duplicate-pair flow resolves deterministically to first sorted edge', () => {
+    const model = modelOf('service a "A"\nservice q "Q"\na -> q\na -> q\nflow f {\n a -> q\n}\n');
+    const { plan } = planFlow(need(model.flows[0], 'flow'), model, 'system');
+    // Documented v0 semantic: first edge in (from,to,label) sorted order wins (never silent random).
+    const traverse = need(plan.steps[0], 'step').ops.find((o) => o.op === 'traverse');
+    expect(traverse).toBeDefined();
+    if (traverse?.op === 'traverse') expect(traverse.edge).toBe('a--q');
+  });
 });
 
 describe('svg id model', () => {

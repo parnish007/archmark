@@ -9,6 +9,8 @@ export interface ArchBlock {
   source: string;
   start: number;
   end: number;
+  /** 1-based file line where the block's DSL content starts (for file-relative diagnostics). */
+  contentStartLine: number;
 }
 export const MAX_BLOCKS = 50;
 
@@ -22,7 +24,13 @@ export function extractBlocks(md: string): ArchBlock[] {
     const first = idx.diagnostics.find((d) => d.severity === 'error');
     throw new PatchError(`Refusing to extract: ${first?.code ?? 'AM21xx'} ${first?.message ?? 'invalid regions'}`, idx.diagnostics);
   }
-  return idx.sources.map((s) => ({ id: s.id, source: s.source, start: s.comment.start, end: s.comment.end }));
+  return idx.sources.map((s) => ({
+    id: s.id,
+    source: s.source,
+    start: s.comment.start,
+    end: s.comment.end,
+    contentStartLine: s.contentStartLine,
+  }));
 }
 
 export function renderTag(id: string, light: string, dark: string, alt: string): string {

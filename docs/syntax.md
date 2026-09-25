@@ -47,7 +47,10 @@ Groups lay out as ELK compound containers — membership is truthful by construc
 
 `flow <id> { a -> b ... }` — steps typed request (default) response write read event
 error failure recovery. Strict: every step needs a declared architecture edge (AM3102);
-unknown nodes rejected (AM1203); empty flows rejected (AM3104).
+unknown nodes rejected (AM1203); empty flows rejected (AM3104). Parallel `api -> queue`
+edges are distinguished by stable `from--to[#n]` ids; a flow step resolves deterministically
+to the first in `(from, to, label)` sorted order (documented v0 semantic — declare distinct
+edges deliberately; future qualifiers may refine this).
 
 ## Errors
 

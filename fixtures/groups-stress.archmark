@@ -1,0 +1,25 @@
+service edge "Edge"
+database shared "Shared DB"
+
+group alpha "Alpha" {
+service a1 "Alpha One"
+service a2 "Alpha Two"
+}
+
+group beta "Beta Team With A Long Name" {
+service b1 "Beta One"
+}
+
+group gamma "Gamma" {
+service g1 "Gamma Solo"
+}
+
+edge -> a1
+a1 -> b1
+b1 -> a2
+a2 -> g1
+g1 -> a1
+a2 -> a2
+b1 -> shared
+g1 -> shared
+edge -> shared
