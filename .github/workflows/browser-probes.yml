@@ -1,0 +1,24 @@
+name: browser-probes
+# Non-blocking: GitHub rendering + animation probes. Manual or nightly; never gates PRs.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 0'
+jobs:
+  probes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.24.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: node_modules/.bin/playwright install --with-deps chromium firefox webkit
+      - run: ENGINE=chromium node scripts/generated-matrix.js
+      - run: ENGINE=firefox node scripts/generated-matrix.js
+      - run: ENGINE=webkit node scripts/generated-matrix.js
