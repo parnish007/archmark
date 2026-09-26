@@ -67,10 +67,6 @@ const RE_ID = /\bid\s*=\s*([A-Za-z0-9_-]+)/;
 const RE_GEN_START = /^archmark-render:start\s+([A-Za-z0-9_.-]+)\s*$/;
 const RE_GEN_END = /^archmark-render:end\s+([A-Za-z0-9_.-]+)\s*$/;
 
-function overlaps(ranges: ByteRange[], start: number, end: number): boolean {
-  return ranges.some((r) => start < r.end && r.start < end);
-}
-
 export function scanMarkdown(text: string): MarkdownRegionIndex {
   const diagnostics: Diagnostic[] = [];
   let fatal = false;
@@ -80,68 +76,100 @@ export function scanMarkdown(text: string): MarkdownRegionIndex {
   };
   const lines = splitLines(text);
 
-  // Pass 1: fences (CommonMark-ish: open ^ {0,3} run; close same char len>=open, blank tail).
+  // Single-pass lexical scan with explicit state. Precedence is determined by which
+  // construct opens FIRST, matching CommonMark block structure:
+  // - NORMAL: fence opens and HTML comment opens are both recognized.
+  // - FENCED_CODE: everything is literal until the closing fence; `<!--` is inert.
+  // - HTML_COMMENT: fence delimiters are inert; only `-->` ends the comment.
+  // In particular a fence token inside a generic multiline HTML comment can never open
+  // a code fence (F-H-1), and ArchMark syntax inside fenced code never activates.
   const fences: FenceRange[] = [];
-  let open: { char: '`' | '~'; len: number; start: number; startLine: number } | null = null;
+  const comments: CommentRange[] = [];
+  let fence: { char: '`' | '~'; len: number; start: number; startLine: number } | null = null;
+  let commentStart = -1;
+  let commentStartLine = 1;
+  // Record a complete comment found while scanning a single line's remainder.
+  const pushComment = (start: number, end: number, startLine: number, endLine: number): void => {
+    comments.push({ start, end, startLine, endLine, body: text.slice(start + 4, end - 3) });
+  };
+  // Scan the remainder of a line (after a comment closed mid-line) for further comments.
+  // Fence runs are never recognized mid-line: fence detection is line-anchored.
+  const scanCommentRest = (t: string, ln: Line, from: number): void => {
+    let rest = t.slice(from);
+    let base = ln.start + from;
+    for (;;) {
+      const open = rest.indexOf('<!--');
+      if (open < 0) return;
+      const absOpen = base + open;
+      const close = rest.indexOf('-->', open + 4);
+      if (close < 0) {
+        commentStart = absOpen;
+        commentStartLine = ln.no;
+        return;
+      }
+      const absClose = base + close + 3;
+      pushComment(absOpen, absClose, ln.no, ln.no);
+      rest = rest.slice(close + 3);
+      base = absClose;
+    }
+  };
   for (const ln of lines) {
     const t = ln.text;
-    if (!open) {
-      const m = RE_FENCE_OPEN.exec(t);
-      if (m) {
-        const run = m[1] as string;
-        if (run[0] === '`' && /`/.test(t.slice(t.indexOf(run) + run.length))) {
-          // backtick info string containing backtick: not a fence
-        } else {
-          open = { char: run[0] as '`' | '~', len: run.length, start: ln.start, startLine: ln.no };
-        }
-      }
-    } else {
+    if (fence !== null) {
       const cm = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(t);
-      if (cm && (cm[1] as string)[0] === open.char && (cm[1] as string).length >= open.len) {
-        fences.push({ start: open.start, end: ln.end, startLine: open.startLine, endLine: ln.no, char: open.char, length: open.len });
-        open = null;
+      if (cm && (cm[1] as string)[0] === fence.char && (cm[1] as string).length >= fence.len) {
+        fences.push({ start: fence.start, end: ln.end, startLine: fence.startLine, endLine: ln.no, char: fence.char, length: fence.len });
+        fence = null;
+      }
+      continue;
+    }
+    if (commentStart >= 0) {
+      const end = t.indexOf('-->');
+      if (end >= 0) {
+        const closeEnd = ln.start + end + 3;
+        pushComment(commentStart, closeEnd, commentStartLine, ln.no);
+        commentStart = -1;
+        scanCommentRest(t, ln, end + 3);
+      }
+      continue;
+    }
+    // NORMAL state.
+    const m = RE_FENCE_OPEN.exec(t);
+    if (m) {
+      const run = m[1] as string;
+      if (run[0] === '`' && /`/.test(t.slice(t.indexOf(run) + run.length))) {
+        // backtick info string containing backtick: not a fence
+      } else {
+        fence = { char: run[0] as '`' | '~', len: run.length, start: ln.start, startLine: ln.no };
+        continue;
+      }
+    }
+    const open = t.indexOf('<!--');
+    if (open >= 0) {
+      const absOpen = ln.start + open;
+      const close = t.indexOf('-->', open + 4);
+      if (close >= 0) {
+        pushComment(absOpen, ln.start + close + 3, ln.no, ln.no);
+        scanCommentRest(t, ln, close + 3);
+      } else {
+        commentStart = absOpen;
+        commentStartLine = ln.no;
       }
     }
   }
-  if (open) {
+  if (fence !== null) {
     // Unclosed fence: rest of file is fenced (protected). Record to EOF.
     fences.push({
-      start: open.start,
+      start: fence.start,
       end: text.length,
-      startLine: open.startLine,
+      startLine: fence.startLine,
       endLine: lines[lines.length - 1]?.no ?? 1,
-      char: open.char,
-      length: open.len,
+      char: fence.char,
+      length: fence.len,
     });
   }
-
-  // Pass 2: complete HTML comments outside fences.
-  const comments: CommentRange[] = [];
-  {
-    for (const m of text.matchAll(/<!--([\s\S]*?)-->/g)) {
-      const s = m.index;
-      const e = m.index + m[0].length;
-      if (overlaps(fences, s, e)) continue; // fenced (even partially): opaque
-      const startLine = lineOf(lines, s);
-      comments.push({ start: s, end: e, startLine, endLine: lineOf(lines, e), body: m[1] ?? '' });
-    }
-    // Unclosed comment detection: trailing <!-- without --> (outside fences only).
-    const lastOpen = text.lastIndexOf('<!--');
-    if (lastOpen !== -1 && !comments.some((c) => lastOpen >= c.start && lastOpen < c.end) && !overlaps(fences, lastOpen, lastOpen + 4)) {
-      const after = text.slice(lastOpen);
-      if (!after.includes('-->')) {
-        fail(
-          diag(
-            'AM2107',
-            'error',
-            'Unclosed HTML comment; markers inside cannot be trusted.',
-            lineOf(lines, lastOpen),
-            1,
-            'Close the comment with --> or remove it.',
-          ),
-        );
-      }
-    }
+  if (commentStart >= 0) {
+    fail(diag('AM2107', 'error', 'Unclosed HTML comment; markers inside cannot be trusted.', commentStartLine, 1, 'Close the comment with --> or remove it.'));
   }
 
   // Pass 3: classify markers.

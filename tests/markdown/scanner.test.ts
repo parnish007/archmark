@@ -28,6 +28,51 @@ describe('scanner fences', () => {
   });
 });
 
+describe('scanner comment precedence (F-H-1)', () => {
+  // Fence delimiters inside a generic multiline HTML comment are inert: they must not
+  // open code fences and swallow subsequent real ArchMark blocks.
+  for (const [name, fence] of [
+    ['backtick', '```'],
+    ['tilde', '~~~'],
+    ['long-backtick', '````'],
+  ] as const) {
+    it(`fence ${name} inside multiline comment does not swallow following block`, () => {
+      const md = `<!--\n${fence}\ncode\n-->\n\n${src('real', 'service y "Y"')}\n`;
+      const idx = scanMarkdown(md);
+      expect(idx.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+      expect(extractBlocks(md).map((b) => b.id)).toEqual(['real']);
+    });
+  }
+  it('lookalike archmark text inside a comment never becomes a source block', () => {
+    const md = `<!--\nExample: <!-- archmark id=x ... --> (do not do this)\n-->\n\n${src('real', 'service y "Y"')}\n`;
+    // The lookalike must not compile (no source block); near-miss strictness may still
+    // flag the outer comment, but sources must contain only the real block.
+    const idx = scanMarkdown(md);
+    expect(idx.sources.map((s) => s.id)).toEqual(['real']);
+  });
+  it('real fenced block immediately after a comment still protects', () => {
+    const md = `<!-- note -->\n\n\`\`\`md\n${src('demo', 'service x "X"')}\n\`\`\`\n\n${src('real', 'service y "Y"')}\n`;
+    expect(extractBlocks(md).map((b) => b.id)).toEqual(['real']);
+  });
+  it('comment immediately after a fenced block is still scanned', () => {
+    const md = `\`\`\`\ncode\n\`\`\`\n<!-- note -->\n\n${src('real', 'service y "Y"')}\n`;
+    expect(extractBlocks(md).map((b) => b.id)).toEqual(['real']);
+  });
+  it('comment/fence precedence holds under CRLF', () => {
+    const md = `<!--\r\n\`\`\`\r\ncode\r\n-->\r\n\r\n${src('real', 'service y "Y"')}\r\n`;
+    expect(extractBlocks(md).map((b) => b.id)).toEqual(['real']);
+  });
+  it('unclosed HTML comment fails closed (AM2107)', () => {
+    const md = `# T\n\n${src('real', 'service y "Y"')}\n\n<!-- broken\n`;
+    expect(() => extractBlocks(md)).toThrow(/AM2107/);
+  });
+  it('nested-looking comment opener does not extend the comment', () => {
+    const md = `<!-- outer <!-- inner -->\n\n${src('real', 'service y "Y"')}\n`;
+    // First --> ends the comment (no nesting); the real block follows normally.
+    expect(extractBlocks(md).map((b) => b.id)).toEqual(['real']);
+  });
+});
+
 describe('scanner fail-closed', () => {
   it('duplicate source ids fatal with both locations (AM2103)', () => {
     const md = `${src('system', 'service a "A"')}\n\n${src('system', 'service b "B"')}\n`;
