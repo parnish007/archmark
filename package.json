@@ -5,7 +5,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "bin": {
-    "archmark": "./dist/cli/cli.js"
+    "archmark": "dist/cli/cli.js"
   },
   "exports": {},
   "files": [
@@ -26,7 +26,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/parnish007/archmark.git"
+    "url": "git+https://github.com/parnish007/archmark.git"
   },
   "homepage": "https://github.com/parnish007/archmark#readme",
   "bugs": {
