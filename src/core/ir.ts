@@ -79,6 +79,10 @@ export interface ArchFlowStep {
 export interface ArchFlow {
   id: string;
   steps: ArchFlowStep[];
+  // DSL-relative line of the `flow <id> {` header. Attached deliberately (not parser
+  // trivia): flow-level diagnostics (empty flow, step caps, timeline errors) must point
+  // at user source. Steps carry their own lines for step-level diagnostics.
+  line: number;
 }
 export interface ArchModel {
   nodes: ArchNode[];

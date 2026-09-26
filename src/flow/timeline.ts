@@ -9,6 +9,9 @@ export interface TimelineNode {
   startMs: number;
   durMs: number;
   deps: string[];
+  // DSL-relative line of the originating plan step (settle node: flow header line).
+  // Provenance for diagnostics, not timing.
+  line: number;
 }
 export interface Timeline {
   nodes: TimelineNode[];
@@ -33,11 +36,11 @@ export function compileTimeline(plan: FlowPlan): { timeline: Timeline; diagnosti
       const op = step.ops[k] as SemanticOp;
       const dur = durationFor(op);
       if (!(dur > 0)) {
-        diagnostics.push({ code: 'AM3202', severity: 'error', message: `Non-positive duration for ${op.op}.`, line: 1, col: 1 });
+        diagnostics.push({ code: 'AM3202', severity: 'error', message: `Non-positive duration for ${op.op}.`, line: step.line, col: 1 });
         return { timeline: { nodes: [], totalMs: 0 }, diagnostics, fatal: true };
       }
       const id = `${step.stepId}.o${k}`;
-      nodes.push({ id, startMs: t, durMs: dur, deps: prev ? [prev] : [] });
+      nodes.push({ id, startMs: t, durMs: dur, deps: prev ? [prev] : [], line: step.line });
       // Renderer embellishment tails (broadcast echoes, fail second ring) extend past the
       // node end; totalMs covers them so loops/progress never clip the tail.
       if (op.op === 'pulse') tailEnd = Math.max(tailEnd, t + dur + echoTailMs(op.style));
@@ -46,14 +49,14 @@ export function compileTimeline(plan: FlowPlan): { timeline: Timeline; diagnosti
     }
   }
   // Settle closes the flow.
-  nodes.push({ id: `${plan.flowId}.settle`, startMs: t, durMs: MOTION_TOKENS.settle.durMs, deps: prev ? [prev] : [] });
+  nodes.push({ id: `${plan.flowId}.settle`, startMs: t, durMs: MOTION_TOKENS.settle.durMs, deps: prev ? [prev] : [], line: plan.line });
   t += MOTION_TOKENS.settle.durMs;
   if (nodes.length > MAX_ANIM_OPS) {
     diagnostics.push({
       code: 'AM3203',
       severity: 'error',
       message: `Flow "${plan.flowId}" compiles to ${nodes.length} animation events (> ${MAX_ANIM_OPS}).`,
-      line: 1,
+      line: plan.line,
       col: 1,
       hint: 'Split the flow; parallel fan-out must be chunked.',
     });
@@ -64,12 +67,12 @@ export function compileTimeline(plan: FlowPlan): { timeline: Timeline; diagnosti
   for (const n of nodes) {
     for (const d of n.deps) {
       if (!seen.has(d)) {
-        diagnostics.push({ code: 'AM3204', severity: 'error', message: `Unresolved timeline dependency "${d}".`, line: 1, col: 1 });
+        diagnostics.push({ code: 'AM3204', severity: 'error', message: `Unresolved timeline dependency "${d}".`, line: n.line, col: 1 });
         return { timeline: { nodes: [], totalMs: 0 }, diagnostics, fatal: true };
       }
     }
     if (n.deps.includes(n.id)) {
-      diagnostics.push({ code: 'AM3205', severity: 'error', message: `Timeline dependency cycle at "${n.id}".`, line: 1, col: 1 });
+      diagnostics.push({ code: 'AM3205', severity: 'error', message: `Timeline dependency cycle at "${n.id}".`, line: n.line, col: 1 });
       return { timeline: { nodes: [], totalMs: 0 }, diagnostics, fatal: true };
     }
   }

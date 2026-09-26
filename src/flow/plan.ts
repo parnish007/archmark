@@ -13,11 +13,16 @@ export type SemanticOp =
 
 export interface FlowPlanStep {
   stepId: string;
+  // DSL-relative line of the source step. Attached deliberately: step diagnostics must
+  // point at user source, and the CLI maps this to README-relative lines.
+  line: number;
   ops: SemanticOp[];
 }
 export interface FlowPlan {
   flowId: string;
   archId: string;
+  // DSL-relative line of the `flow <id> {` header, for flow-level diagnostics.
+  line: number;
   steps: FlowPlanStep[];
 }
 
@@ -38,11 +43,11 @@ export function planFlow(flow: ArchFlow, model: ArchModel, archId: string): { pl
       code: 'AM3201',
       severity: 'error',
       message: `Flow "${flow.id}" has ${flow.steps.length} steps (> ${MAX_FLOW_STEPS}).`,
-      line: 1,
+      line: flow.line,
       col: 1,
       hint: 'Split into multiple flows.',
     });
-    return { plan: { flowId: flow.id, archId, steps: [] }, diagnostics, fatal: true };
+    return { plan: { flowId: flow.id, archId, line: flow.line, steps: [] }, diagnostics, fatal: true };
   }
   flow.steps.forEach((s, i) => {
     const stepId = `${flow.id}.s${i}`;
@@ -51,7 +56,7 @@ export function planFlow(flow: ArchFlow, model: ArchModel, archId: string): { pl
         code: 'AM3103',
         severity: 'error',
         message: `Flow "${flow.id}" step references unknown node in ${s.from} -> ${s.to}.`,
-        line: 1,
+        line: s.line,
         col: 1,
       });
       fatal = true;
@@ -63,7 +68,7 @@ export function planFlow(flow: ArchFlow, model: ArchModel, archId: string): { pl
         code: 'AM3103',
         severity: 'error',
         message: `Flow "${flow.id}" step ${s.from} -> ${s.to} resolves to no architecture edge.`,
-        line: 1,
+        line: s.line,
         col: 1,
         hint: 'AM3102 should have caught this; refusing to animate unresolved topology.',
       });
@@ -104,7 +109,7 @@ export function planFlow(flow: ArchFlow, model: ArchModel, archId: string): { pl
         throw new Error(`planFlow: unhandled step type "${_exhaustive}" (AM3206)`);
       }
     }
-    steps.push({ stepId, ops });
+    steps.push({ stepId, line: s.line, ops });
   });
-  return { plan: { flowId: flow.id, archId, steps }, diagnostics, fatal };
+  return { plan: { flowId: flow.id, archId, line: flow.line, steps }, diagnostics, fatal };
 }

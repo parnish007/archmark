@@ -205,6 +205,7 @@ export function compile(ast: Ast): CompileResult {
   }
   const flows = ast.flows.map((f) => ({
     id: f.id,
+    line: f.line,
     steps: f.steps.map((s) => {
       const valid: readonly FlowStepType[] = ['request', 'response', 'write', 'read', 'event', 'error', 'failure', 'recovery'];
       let type: FlowStepType | undefined = s.type as FlowStepType | undefined;
@@ -243,10 +244,9 @@ export function compile(ast: Ast): CompileResult {
     const declared = new Set(edges.map((e) => `${e.from}→${e.to}`));
     for (const f of flows) {
       if (f.steps.length === 0) {
-        const fl = ast.flows.find((x) => x.id === f.id);
         diagnostics.push({
           code: 'AM3104',
-          line: fl?.line ?? 1,
+          line: f.line,
           col: 1,
           severity: 'error',
           message: `Flow "${f.id}" has no steps.`,

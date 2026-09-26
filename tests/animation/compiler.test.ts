@@ -70,7 +70,7 @@ describe('timeline', () => {
     const { plan } = planFlow(need(model.flows[0], 'flow'), model, 'system');
     const { timeline, fatal } = compileTimeline(plan);
     expect(fatal).toBe(false);
-    expect(need(timeline.nodes[0], 'node')).toEqual({ id: 'request.s0.o0', startMs: 0, durMs: MOTION_TOKENS.activation.durMs, deps: [] });
+    expect(need(timeline.nodes[0], 'node')).toEqual({ id: 'request.s0.o0', startMs: 0, durMs: MOTION_TOKENS.activation.durMs, deps: [], line: 9 });
     expect(timeline.nodes[1]?.deps).toEqual(['request.s0.o0']);
     expect(timeline.totalMs).toBe(timeline.nodes.reduce((m, n) => Math.max(m, n.startMs + n.durMs), 0));
     expect(JSON.stringify(timeline)).not.toMatch(/svg|smil|mpath/i);
@@ -81,6 +81,37 @@ describe('timeline', () => {
     const r = planFlow(big as never, model, 'system');
     expect(r.fatal).toBe(true);
     expect(r.diagnostics.some((d) => d.code === 'AM3201')).toBe(true);
+  });
+});
+
+describe('flow diagnostic positions (F-M-2)', () => {
+  // Multiline flow; the invalid step is the LAST line. Diagnostics must point at the
+  // step, not at the block head.
+  const SRC_POS = 'service a "A"\nservice b "B"\nservice c "C"\na -> b\nb -> c\nflow f {\n a -> b\n b -> c\n c -> a\n}\n';
+  it('invalid middle and last steps report their own lines', () => {
+    const { ast } = parse(SRC_POS);
+    const { diagnostics } = compile(ast);
+    // c -> a undeclared (line 9): compiler AM3102 carries the step line.
+    const d = diagnostics.find((x) => x.code === 'AM3102');
+    expect(d?.line).toBe(9);
+  });
+  it('planFlow step diagnostics carry step lines, flow diagnostics carry the header', () => {
+    const { ast } = parse('service a "A"\nservice b "B"\na -> b\nflow f {\n a -> b\n a -> nope\n}\n');
+    const { model } = compile(ast);
+    const flow = need(model.flows[0], 'flow');
+    expect(flow.line).toBe(4);
+    const { diagnostics } = planFlow(flow, model, 'system');
+    const d = diagnostics.find((x) => x.code === 'AM3103');
+    expect(d?.line).toBe(6);
+  });
+  it('first/middle/last plan steps keep their lines through timeline', () => {
+    const { ast } = parse('service a "A"\nservice b "B"\nservice c "C"\na -> b\nb -> c\nc -> a\nflow f {\n a -> b\n b -> c\n c -> a\n}\n');
+    const { model } = compile(ast);
+    const { plan } = planFlow(need(model.flows[0], 'flow'), model, 'system');
+    expect(plan.steps.map((s) => s.line)).toEqual([8, 9, 10]);
+    const { timeline } = compileTimeline(plan);
+    const firsts = [timeline.nodes[0], timeline.nodes[3], timeline.nodes[6]].map((n) => need(n, 'node').line);
+    expect(firsts).toEqual([8, 9, 10]);
   });
 });
 
