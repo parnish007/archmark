@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { XMLValidator } from 'fast-xml-parser';
 import { compileAnimation } from '../../src/animation/ir.js';
 import { MOTION_TOKENS } from '../../src/animation/tokens.js';
 import { compile } from '../../src/core/compiler.js';
@@ -184,6 +185,53 @@ describe('settle semantics (timing-only, no renderer protocol)', () => {
     expect(traverse).toBeDefined();
     if (traverse?.op === 'traverse') expect(traverse.edge).toBe('a--q');
   });
+});
+
+describe('flow loop modifier', () => {
+  const LOOP_SRC = 'service a "A"\nservice b "B"\na -> b\nflow f loop {\n a -> b\n}\n';
+  it('parses `flow <id> loop {`, defaults to finite', () => {
+    expect(parse(LOOP_SRC).ast.flows[0]).toMatchObject({ id: 'f', loop: true });
+    expect(parse('service a "A"\nservice b "B"\na -> b\nflow f {\n a -> b\n}\n').ast.flows[0]).toMatchObject({
+      id: 'f',
+      loop: false,
+    });
+    // A flow literally named "loop" still parses as a name, not a modifier.
+    expect(parse('service a "A"\nservice b "B"\na -> b\nflow loop {\n a -> b\n}\n').ast.flows[0]).toMatchObject({
+      id: 'loop',
+      loop: false,
+    });
+  });
+  it('loop threads parser→compiler→plan→IR; default finite', () => {
+    const model = modelOf(LOOP_SRC);
+    expect(need(model.flows[0], 'flow').loop).toBe(true);
+    const { plan, fatal } = planFlow(need(model.flows[0], 'flow'), model, 'system');
+    expect(fatal).toBe(false);
+    expect(plan.loop).toBe(true);
+    const { timeline } = compileTimeline(plan);
+    expect(compileAnimation(plan, timeline).loop).toBe(true);
+    const plain = modelOf('service a "A"\nservice b "B"\na -> b\nflow f {\n a -> b\n}\n');
+    const { plan: p2 } = planFlow(need(plain.flows[0], 'flow'), plain, 'system');
+    expect(p2.loop).toBe(false);
+    expect(compileAnimation(p2, compileTimeline(p2).timeline).loop).toBe(false);
+  });
+  it('looping render repeats timed elements; finite render has none', async () => {
+    const model = modelOf(LOOP_SRC);
+    const { plan } = planFlow(need(model.flows[0], 'flow'), model, 'system');
+    const { timeline } = compileTimeline(plan);
+    const placed = await new ElkLayout().layout(model);
+    const scene = toScene(model, placed);
+    const looped = new SmilRenderer().render(scene, compileAnimation(plan, timeline), 'light');
+    expect(looped).toContain('repeatCount="indefinite"');
+    expect(XMLValidator.validate(looped)).toBe(true);
+    // Static base intact: looping changes motion only, first frame stays complete.
+    expect(looped).toContain('role="img"');
+    const plain = modelOf('service a "A"\nservice b "B"\na -> b\nflow f {\n a -> b\n}\n');
+    const { plan: p2 } = planFlow(need(plain.flows[0], 'flow'), plain, 'system');
+    const { timeline: t2 } = compileTimeline(p2);
+    const p2l = await new ElkLayout().layout(plain);
+    const once = new SmilRenderer().render(toScene(plain, p2l), compileAnimation(p2, t2), 'light');
+    expect(once).not.toContain('repeatCount');
+  }, 30000);
 });
 
 describe('svg id model', () => {

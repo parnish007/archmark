@@ -52,8 +52,11 @@ export class SmilRenderer implements AnimationRenderer {
     const nodeById = new Map(scene.nodes.map((n) => [n.id, n]));
     const anim: string[] = [];
     const ops = [...animation.ops].sort((a, b) => a.startMs - b.startMs || a.id.localeCompare(b.id));
+    // Author-opted loop (`flow <id> loop {`): every timed element repeats indefinitely.
+    // Default stays finite+freeze. First frame is complete either way (static base).
+    const rep = animation.loop ? ' repeatCount="indefinite"' : '';
     for (const op of ops) {
-      anim.push(this.renderOp(op, t, ids, layer.edgePathIds, nodeById));
+      anim.push(this.renderOp(op, t, ids, layer.edgePathIds, nodeById, rep));
     }
     const parts: string[] = [];
     parts.push(
@@ -79,6 +82,7 @@ export class SmilRenderer implements AnimationRenderer {
     ids: IdScope,
     edgePaths: Map<string, string>,
     nodes: Map<string, { x: number; y: number; w: number; h: number }>,
+    rep: string,
   ): string {
     const mid = ids.unique('motion', op.id);
     const b = ms(op.startMs);
@@ -100,7 +104,7 @@ export class SmilRenderer implements AnimationRenderer {
           op.durMs <= 150
             ? `values="1;0" keyTimes="0;1"`
             : `values="1;1;0" keyTimes="0;${((Math.max(op.startMs, op.startMs + op.durMs - 150) - op.startMs) / op.durMs).toFixed(3)};1"`;
-        return `<circle r="${r}" fill="${fill}"${stroke} opacity="0"><set attributeName="opacity" to="1" begin="${b}" fill="freeze"/><animate attributeName="opacity" ${fade} dur="${d}" begin="${b}" fill="freeze"/><animateMotion dur="${d}" begin="${b}" fill="freeze" calcMode="paced"><mpath href="#${pathId}" xlink:href="#${pathId}"/></animateMotion></circle><!--${mid}-->`;
+        return `<circle r="${r}" fill="${fill}"${stroke} opacity="0"><set attributeName="opacity" to="1" begin="${b}" fill="freeze"${rep}/><animate attributeName="opacity" ${fade} dur="${d}" begin="${b}" fill="freeze"${rep}/><animateMotion dur="${d}" begin="${b}" fill="freeze"${rep} calcMode="paced"><mpath href="#${pathId}" xlink:href="#${pathId}"/></animateMotion></circle><!--${mid}-->`;
       }
       case 'pulse': {
         const n = nodes.get(op.target);
@@ -111,7 +115,7 @@ export class SmilRenderer implements AnimationRenderer {
         const opEase2 = easeAttrs(op.token, 2);
         const opEase1 = easeAttrs(op.token, 1);
         const ring = (rr: number, color: string, sw: number, begin: string, dur: string, opPeak: number) =>
-          `<circle cx="${cx}" cy="${cy}" r="8" fill="none" stroke="${color}" stroke-width="${sw}" opacity="0"><animate attributeName="opacity" values="0;${opPeak};0" keyTimes="0;0.5;1" dur="${dur}" begin="${begin}" fill="freeze" ${opEase2}/><animate attributeName="r" values="8;${rr}" keyTimes="0;1" dur="${dur}" begin="${begin}" fill="freeze" ${opEase1}/></circle>`;
+          `<circle cx="${cx}" cy="${cy}" r="8" fill="none" stroke="${color}" stroke-width="${sw}" opacity="0"><animate attributeName="opacity" values="0;${opPeak};0" keyTimes="0;0.5;1" dur="${dur}" begin="${begin}" fill="freeze"${rep} ${opEase2}/><animate attributeName="r" values="8;${rr}" keyTimes="0;1" dur="${dur}" begin="${begin}" fill="freeze"${rep} ${opEase1}/></circle>`;
         if (op.style === 'fail') {
           // Non-color redundancy: DOUBLE ring (count=2) + wider peak. Distinguishable in monochrome.
           const color = t.danger;
@@ -139,7 +143,7 @@ export class SmilRenderer implements AnimationRenderer {
         const cx = Math.round((n.x + n.w / 2) * 100) / 100;
         const cy = Math.round((n.y + n.h / 2) * 100) / 100;
         // Crisp presence dot (not a faint blob): small, near-full peak, same token.
-        return `<circle cx="${cx}" cy="${cy}" r="6" fill="${accent}" opacity="0"><animate attributeName="opacity" values="0;0.9;0" keyTimes="0;0.5;1" dur="${d}" begin="${b}" fill="freeze" ${easeAttrs(op.token, 2)}/></circle><!--${mid}-->`;
+        return `<circle cx="${cx}" cy="${cy}" r="6" fill="${accent}" opacity="0"><animate attributeName="opacity" values="0;0.9;0" keyTimes="0;0.5;1" dur="${d}" begin="${b}" fill="freeze"${rep} ${easeAttrs(op.token, 2)}/></circle><!--${mid}-->`;
       }
       default: {
         // Exhaustive: future AnimOpKind values fail compile here first; unreachable at

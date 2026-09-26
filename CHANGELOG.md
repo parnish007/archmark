@@ -19,3 +19,5 @@ Initial public core (not yet published to npm):
   crisper motion presence (r7 packets, r6 activation dot)
 - Fixed intra-group edge placement (same-group edges now translate from ELK's
   group-relative frame; H6 regression test)
+- Per-flow `loop` modifier (`flow <id> loop { ... }`) for repeating showcase
+  animations; default stays one play + freeze; README hero loops

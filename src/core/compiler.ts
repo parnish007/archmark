@@ -210,6 +210,7 @@ export function compile(ast: Ast): CompileResult {
   }
   const flows = ast.flows.map((f) => ({
     id: f.id,
+    loop: f.loop,
     line: f.line,
     steps: f.steps.map((s) => {
       const valid: readonly FlowStepType[] = ['request', 'response', 'write', 'read', 'event', 'error', 'failure', 'recovery'];

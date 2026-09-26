@@ -24,7 +24,14 @@ M1 motion tokens) → SMIL renderer (verified subset only).
 
 Tokens (`src/animation/tokens.ts`): requestTraverse 700ms, responseTraverse 500ms,
 activation/receivePulse 200ms, stateTransition 400ms, stagger 90ms, settle 200ms.
-One play + freeze; no indefinite loops; no filters/glow/bounce/dash tricks.
+Default is one play + freeze; no filters/glow/bounce/dash tricks.
+
+## Looping flows (author opt-in)
+
+`flow <id> loop { ... }` repeats the choreography indefinitely (`repeatCount` on every
+timed element) so showcase assets stay alive for every viewer. Looping is explicit,
+never default: finite+freeze remains the rule for all other flows. A looping asset's
+first frame is still the complete static diagram, so the static fallback is intact.
 
 ## Parallelism, precisely
 

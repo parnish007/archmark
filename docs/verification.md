@@ -65,7 +65,10 @@ not a merge gate).
 
 ## Animation properties — verified by construction + inspection
 
-- Finite then freeze: every timed element uses `fill="freeze"`; nothing loops forever.
+- Finite then freeze by default: every timed element uses `fill="freeze"`. The single
+  exception is the README hero, whose flow opts into `loop` explicitly
+  (`flow request loop {`) so every visitor sees motion; its first frame remains the
+  complete static diagram.
 - No JavaScript: animated assets contain only SMIL (`set` / `animate` / `animateMotion` /
   `mpath`); zero `<script>` elements, zero event-handler attributes.
 - Production-generated: the README hero is byte-identical to CLI output

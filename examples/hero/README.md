@@ -12,7 +12,7 @@ frontend -> api
 api -> model
 api -> db
 
-flow request {
+flow request loop {
   user -> frontend
   frontend -> api
   api -> model
@@ -34,7 +34,7 @@ frontend -> api
 api -> model
 api -> db
 
-flow request {
+flow request loop {
   user -> frontend
   frontend -> api
   api -> model

@@ -21,6 +21,7 @@ export interface FlowPlanStep {
 export interface FlowPlan {
   flowId: string;
   archId: string;
+  loop: boolean;
   // DSL-relative line of the `flow <id> {` header, for flow-level diagnostics.
   line: number;
   steps: FlowPlanStep[];
@@ -47,7 +48,7 @@ export function planFlow(flow: ArchFlow, model: ArchModel, archId: string): { pl
       col: 1,
       hint: 'Split into multiple flows.',
     });
-    return { plan: { flowId: flow.id, archId, line: flow.line, steps: [] }, diagnostics, fatal: true };
+    return { plan: { flowId: flow.id, archId, loop: flow.loop, line: flow.line, steps: [] }, diagnostics, fatal: true };
   }
   flow.steps.forEach((s, i) => {
     const stepId = `${flow.id}.s${i}`;
@@ -111,5 +112,5 @@ export function planFlow(flow: ArchFlow, model: ArchModel, archId: string): { pl
     }
     steps.push({ stepId, line: s.line, ops });
   });
-  return { plan: { flowId: flow.id, archId, line: flow.line, steps }, diagnostics, fatal };
+  return { plan: { flowId: flow.id, archId, loop: flow.loop, line: flow.line, steps }, diagnostics, fatal };
 }

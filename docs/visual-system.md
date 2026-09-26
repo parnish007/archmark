@@ -67,8 +67,9 @@ Regenerate with `node scripts/generate-icon-gallery.js`; CI verifies freshness w
   reserved for flow behavior, never decoration.
 - Animated flows reuse the static geometry: solid r7 packets (hollow r4.5 for
   responses) travel the real routed paths with a fade-out tail (no parked dots),
-  then every element freezes on its final frame (`fill="freeze"`) — see
-  `docs/animation.md`.
+  then every element freezes on its final frame (`fill="freeze"`) — except flows
+  explicitly marked `loop`, which repeat for showcase use (see
+  `docs/animation.md`).
 - All values live in `src/renderer/tokens.ts` (single source of truth) and
   `DEFAULT_LAYOUT_STYLE` (`src/core/layout.ts`); renderers read the contract,
   never magic numbers.

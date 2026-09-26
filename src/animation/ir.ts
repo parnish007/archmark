@@ -17,6 +17,7 @@ export interface AnimOp {
 export interface AnimationIR {
   flowId: string;
   archId: string;
+  loop: boolean;
   ops: AnimOp[];
   totalMs: number;
 }
@@ -38,5 +39,5 @@ export function compileAnimation(plan: FlowPlan, timeline: Timeline): AnimationI
     const style = pop.op === 'traverse' || pop.op === 'pulse' ? pop.style : pop.op;
     ops.push({ id: n.id, kind, target, token, startMs: n.startMs, durMs: n.durMs, style });
   });
-  return { flowId: plan.flowId, archId: plan.archId, ops, totalMs: timeline.totalMs };
+  return { flowId: plan.flowId, archId: plan.archId, loop: plan.loop, ops, totalMs: timeline.totalMs };
 }

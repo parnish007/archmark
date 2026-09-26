@@ -25,6 +25,7 @@ export interface AstEdge {
 }
 export interface AstFlow {
   id: string;
+  loop: boolean;
   steps: { from: string; to: string; type?: string; line: number }[];
   line: number;
 }
@@ -46,7 +47,7 @@ export const MAX_SOURCE_BYTES = 256 * 1024;
 export const MAX_LINES = 2000;
 
 const IDENT_SRC = '[A-Za-z_][A-Za-z0-9_-]*';
-const RE_FLOW_OPEN = new RegExp(`^flow\\s+(${IDENT_SRC})\\s*(\\{?)\\s*(?://.*)?$`);
+const RE_FLOW_OPEN = new RegExp(`^flow\\s+(${IDENT_SRC})(?:\\s+(loop))?\\s*(\\{?)\\s*(?://.*)?$`);
 const RE_GROUP_OPEN = new RegExp(`^group\\s+(${IDENT_SRC})(?:\\s+"((?:[^"\\\\]|\\\\.)*)")?\\s*(\\{?)\\s*(?://.*)?$`);
 const RE_COMP = new RegExp(`^(${IDENT_SRC})\\s+(${IDENT_SRC})(?:\\s+"((?:[^"\\\\]|\\\\.)*)")?\\s*(?://.*)?$`);
 const RE_EDGE = new RegExp(`^(${IDENT_SRC})\\s*->\\s*(${IDENT_SRC})(?:\\s*\\{((?:[^"{}]|"(?:[^"\\\\]|\\\\.)*")*)\\})?\\s*(?://.*)?$`);
@@ -94,7 +95,7 @@ export function parse(source: string): { ast: Ast; diagnostics: Diagnostic[] } {
 
     let m = t.match(RE_FLOW_OPEN);
     if (m && t.startsWith('flow')) {
-      if (!m[2]) {
+      if (!m[3]) {
         diagnostics.push({
           code: 'AM1003',
           line,
@@ -105,7 +106,7 @@ export function parse(source: string): { ast: Ast; diagnostics: Diagnostic[] } {
         });
         return;
       }
-      const f: AstFlow = { id: m[1] as string, steps: [], line };
+      const f: AstFlow = { id: m[1] as string, loop: m[2] === 'loop', steps: [], line };
       if (stack.length > 0) {
         diagnostics.push({
           code: 'AM1013',
