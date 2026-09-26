@@ -14,12 +14,12 @@ import {
 } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { dirname, join } from 'node:path';
-import { compileAnimation } from '../animation/ir.js';
+import { compileAnimation, type AnimationIR } from '../animation/ir.js';
 import { compile } from '../core/compiler.js';
-import type { ArchModel } from '../core/ir.js';
+import type { ArchFlow, ArchModel } from '../core/ir.js';
 import { ElkLayout, type LayoutEngine, type PlacedGraph, toScene } from '../core/layout.js';
-import { planFlow } from '../flow/plan.js';
-import { compileTimeline } from '../flow/timeline.js';
+import { planFlow, type FlowPlan } from '../flow/plan.js';
+import { compileTimeline, type Timeline } from '../flow/timeline.js';
 import { parse } from '../language/parser.js';
 import {
   PatchError,
@@ -31,6 +31,7 @@ import {
   resolveReadmeInCwd,
   scan,
   validateSvgName,
+  type ArchBlock,
 } from '../markdown/extract.js';
 import { SmilRenderer, describeFlowAlt } from '../renderer/smil.js';
 import { renderStatic } from '../renderer/svg.js';
@@ -296,15 +297,26 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
     }
   }
   const layout = deps.layout ?? new ElkLayout(); // single instance per run (red-team #3)
-  // Transactional plan: render + patch fully in memory; commit writes only if all valid.
+  // Build staging (deliberate order — cheap semantic failures precede expensive work):
+  // 1. parse + compile every block; 2. plan + timeline + Animation IR every flow, using the
+  //    PRODUCTION compilers (no estimates, no duplicated arithmetic — timeline/animation need
+  //    no geometry); 3. enforce aggregate caps; 4. ONLY THEN layout + scene + render; 5. commit.
   // Generated assets live beside the README (root clutter accepted deliberately: GitHub renders
-  // relative links; no .archmark/ move without an ADR). Overwrite guard: only files whose names
-  // ArchMark itself generated (validated above) are written; anything else is a collision error.
-  let out = md;
-  let failed = false;
+  // relative links; no .archmark/ move without an ADR).
+  interface FlowJob {
+    flow: ArchFlow;
+    plan: FlowPlan;
+    timeline: Timeline;
+    anim: AnimationIR;
+  }
+  interface BlockJob {
+    b: ArchBlock;
+    model: ArchModel;
+    flows: FlowJob[];
+  }
+  const jobs: BlockJob[] = [];
   let totalOps = 0;
-  const dir = dirname(abs);
-  const pendingWrites: { path: string; content: string }[] = [];
+  let failed = false;
   for (const b of blocks) {
     const { ast, diagnostics: pd } = parse(b.source);
     const { model, diagnostics: cd, fatal } = compile(ast);
@@ -319,6 +331,56 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
       failed = true;
       continue;
     }
+    const flows: FlowJob[] = [];
+    for (const flow of model.flows) {
+      let plan: FlowPlan;
+      let timeline: Timeline;
+      try {
+        const planned = planFlow(flow, model, b.id);
+        for (const d of planned.diagnostics)
+          console.error(
+            `${readmePath}:${b.contentStartLine + d.line - 1}:${d.col} [${d.severity}] ${d.code} (flow "${flow.id}"): ${d.message}${d.hint ? `\n  hint: ${d.hint}` : ''}`,
+          );
+        if (planned.diagnostics.some((d) => d.severity === 'error') || planned.fatal) {
+          failed = true;
+          continue;
+        }
+        plan = planned.plan;
+        const timed = compileTimeline(plan);
+        for (const d of timed.diagnostics)
+          console.error(
+            `${readmePath}:${b.contentStartLine + d.line - 1}:${d.col} [${d.severity}] ${d.code} (flow "${flow.id}"): ${d.message}${d.hint ? `\n  hint: ${d.hint}` : ''}`,
+          );
+        if (timed.diagnostics.some((d) => d.severity === 'error') || timed.fatal) {
+          failed = true;
+          continue;
+        }
+        timeline = timed.timeline;
+        const anim = compileAnimation(plan, timeline);
+        totalOps += anim.ops.length;
+        flows.push({ flow, plan, timeline, anim });
+      } catch (e) {
+        console.error(`archmark: error: failed to plan flow "${flow.id}" in block "${b.id}": ${(e as Error).message}`);
+        failed = true;
+      }
+    }
+    jobs.push({ b, model, flows });
+  }
+  // Aggregate cap BEFORE any layout/render: a hostile-but-legal multi-block document is
+  // rejected cheaply (ELK layout is the expensive stage). Counts production AnimationIR
+  // ops, not estimates. Applies to check mode too: a document build would reject is stale.
+  const MAX_TOTAL_OPS = 2000;
+  if (totalOps > MAX_TOTAL_OPS) {
+    console.error(`archmark: error: document compiles to ${totalOps} animation events (> ${MAX_TOTAL_OPS}). Split flows across documents.`);
+    return 1;
+  }
+  // Phase 2 (expensive): layout + scene + render, only for validated jobs.
+  // No architecture semantics are decided here; all planning already succeeded above.
+  let out = md;
+  const dir = dirname(abs);
+  const pendingWrites: { path: string; content: string }[] = [];
+  const smil = new SmilRenderer();
+  for (const { b, model, flows } of jobs) {
     let placed: PlacedGraph | undefined;
     try {
       placed = await layout.layout(model);
@@ -386,25 +448,8 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
       }
       // Named flows: each generates its own animated asset pair (archmark.<base>.<flow>.light/dark.svg)
       // with its own owned README region `${id}.${flow}`. No "first flow wins" convention.
-      const smil = new SmilRenderer();
-      for (const flow of model.flows) {
-        const { plan, diagnostics: pdiags, fatal: pfatal } = planFlow(flow, model, b.id);
-        const {
-          timeline,
-          diagnostics: tdiags,
-          fatal: tfatal,
-        } = pfatal ? { timeline: { nodes: [], totalMs: 0 }, diagnostics: [], fatal: true } : compileTimeline(plan);
-        const fdiags = [...pdiags, ...tdiags];
-        for (const d of fdiags)
-          console.error(
-            `${readmePath}:${b.contentStartLine + d.line - 1}:${d.col} [${d.severity}] ${d.code} (flow "${flow.id}"): ${d.message}${d.hint ? `\n  hint: ${d.hint}` : ''}`,
-          );
-        if (fdiags.some((d) => d.severity === 'error') || pfatal || tfatal) {
-          failed = true;
-          continue;
-        }
-        const anim = compileAnimation(plan, timeline);
-        totalOps += anim.ops.length;
+      // Animation IRs were compiled in the preflight phase; rendering only binds geometry here.
+      for (const { flow, anim } of flows) {
         const aLight = smil.render(scene, anim, 'light', { title: `${b.id} ${flow.id} flow` });
         const aDark = smil.render(scene, anim, 'dark', { title: `${b.id} ${flow.id} flow` });
         const named = flowAssets(b.id, flow.id);
@@ -477,13 +522,6 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
     console.log('archmark check: fresh.');
     return 0;
   }
-  // Per-document aggregate cap: 50 blocks × 500 events could otherwise explode output.
-  // (Per-flow caps already enforced in plan/timeline compilers.)
-  const MAX_TOTAL_OPS = 2000;
-  if (totalOps > MAX_TOTAL_OPS) {
-    console.error(`archmark: error: document compiles to ${totalOps} animation events (> ${MAX_TOTAL_OPS}). Split flows across documents.`);
-    return 1;
-  }
   if (failed) return 1;
   // Commit phase: symlink-guard every target first (fail before any write), then write all.
   // Honest guarantee: nothing changes unless planning/validation succeeded; a mid-commit
@@ -523,3 +561,4 @@ const isMain = process.argv[1]?.endsWith('cli.js') ?? false;
 if (isMain) {
   run(process.argv.slice(2)).then((code) => process.exit(code));
 }
+

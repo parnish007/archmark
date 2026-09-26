@@ -94,8 +94,7 @@ describe('help and version', () => {
 });
 
 describe('aggregate animation cap', () => {
-  it('rejects documents exploding past 2000 total ops', async () => {
-    workdir();
+  function bigDoc(): string {
     let md = '';
     for (let b = 0; b < 7; b++) {
       let nodes = '';
@@ -106,9 +105,37 @@ describe('aggregate animation cap', () => {
       for (let i = 0; i < 100; i++) steps += `  n${b}_${i} -> n${b}_${i + 1}\n`;
       md += `<!-- archmark id=b${b}\n${nodes}${edges}\nflow f {\n${steps}}\n-->\n\n`;
     }
-    writeFileSync('README.md', md);
+    return md;
+  }
+  it('rejects documents exploding past 2000 total ops', async () => {
+    workdir();
+    writeFileSync('README.md', bigDoc());
     const code = await run(['build', 'README.md']);
     expect(code).toBe(1);
+  }, 120000);
+
+  it('rejects BEFORE any layout work (layout calls = 0, no writes)', async () => {
+    workdir();
+    writeFileSync('README.md', bigDoc());
+    let layoutCalls = 0;
+    let writes = 0;
+    const code = await run(['build', 'README.md'], {
+      layout: {
+        layout: () => {
+          layoutCalls++;
+          throw new Error('must not be called');
+        },
+      },
+      fs: {
+        writeFileAtomic: () => {
+          writes++;
+        },
+        readdir: () => [] as string[],
+      },
+    });
+    expect(code).toBe(1);
+    expect(layoutCalls).toBe(0);
+    expect(writes).toBe(0);
   }, 120000);
 });
 
