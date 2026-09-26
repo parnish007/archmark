@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { isOwnedBy, ownershipMarker, parseOwnership } from '../../src/renderer/ownership.js';
+import { describeFlowAlt, SmilRenderer } from '../../src/renderer/smil.js';
+import { summarizeList, truncateGraphemes } from '../../src/core/suggest.js';
+import { ElkLayout, toScene } from '../../src/core/layout.js';
+import { parse } from '../../src/language/parser.js';
+import { compile } from '../../src/core/compiler.js';
 
 const STATIC = { owner: 'system', kind: 'static', variant: 'light', version: '0.1.0' } as const;
 const FLOW = { owner: 'shop', kind: 'flow', flow: 'order', variant: 'dark', version: '0.1.0' } as const;
@@ -42,5 +47,36 @@ describe('ownership marker round-trip', () => {
     const id = { owner: 'a&b', kind: 'static', variant: 'light', version: '1<2' } as const;
     const svg = `<svg>${ownershipMarker({ ...id })}</svg>`;
     expect(parseOwnership(svg)).toEqual({ ...id });
+  });
+});
+
+describe('bounded accessible descriptions (F-M-4)', () => {
+  it('flow alt lists first 6 steps then counts the rest', () => {
+    const steps = Array.from({ length: 100 }, (_, i) => ({ from: `n${i}`, to: `n${i + 1}` }));
+    const alt = describeFlowAlt('shop', 'order', steps);
+    expect(alt).toContain('n0 → n1');
+    expect(alt).toContain('(+94 more)');
+    expect(alt.length).toBeLessThan(500);
+  });
+
+  it('truncation is grapheme-safe (no split surrogate pairs)', () => {
+    expect(truncateGraphemes('🎉🎉🎉🎉🎉', 4)).toBe('🎉🎉🎉…');
+    expect(summarizeList(['a', 'b', 'c'], 5)).toBe('a, b, c');
+    expect(summarizeList(['a', 'b', 'c'], 2)).toBe('a, b (+1 more)');
+  });
+});
+
+describe('renderer fail-loud contract (F-L-1)', () => {
+  it('unsupported animation operations throw instead of emitting comments', async () => {
+    const { ast } = parse('service a "A"\nservice b "B"\na -> b\n');
+    const { model } = compile(ast);
+    const scene = toScene(model, await new ElkLayout().layout(model));
+    const anim = {
+      flowId: 'f',
+      archId: 't',
+      totalMs: 0,
+      ops: [{ id: 'x', kind: 'bogus', target: 'a', token: 'activation', startMs: 0, durMs: 1, style: '' } as never],
+    };
+    expect(() => new SmilRenderer().render(scene, anim, 'light')).toThrow(/unsupported animation operation/);
   });
 });

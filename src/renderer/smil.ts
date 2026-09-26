@@ -1,5 +1,6 @@
 import type { AnimOp, AnimationIR } from '../animation/ir.js';
 import { FAIL_ECHO_MS, MOTION_TOKENS, type MotionToken } from '../animation/tokens.js';
+import { summarizeList, truncateGraphemes } from '../core/suggest.js';
 // Production SMIL renderer: SceneGraph + AnimationIR + Theme → animated SVG.
 // Consumes ONLY the verified subset: animate, animateTransform, animateMotion+mpath,
 // set, begin-chaining, fill=freeze. Receives no DSL/AST/README. Static base is shared
@@ -135,9 +136,10 @@ export class SmilRenderer implements AnimationRenderer {
         return `<circle cx="${cx}" cy="${cy}" r="10" fill="${accent}" opacity="0"><animate attributeName="opacity" values="0;0.25;0" keyTimes="0;0.5;1" dur="${d}" begin="${b}" fill="freeze" ${easeAttrs(op.token, 2)}/></circle><!--${mid}-->`;
       }
       default: {
-        // Exhaustive: future AnimOpKind values fail compile here first (no silent empty output).
+        // Exhaustive: future AnimOpKind values fail compile here first; unreachable at
+        // runtime through typed construction, and a loud internal error otherwise.
         const _exhaustive: never = op.kind;
-        return `<!-- unsupported op ${_exhaustive} -->`;
+        throw new Error(`smil: unsupported animation operation "${_exhaustive}"`);
       }
     }
   }
@@ -151,6 +153,8 @@ function animatedDesc(a: AnimationIR): string {
 }
 
 export function describeFlowAlt(archId: string, flowId: string, steps: { from: string; to: string }[]): string {
-  const seq = steps.map((s) => `${s.from} → ${s.to}`).join(', ');
-  return `${archId} ${flowId} flow: ${seq}`;
+  // Bounded like architecture alts (6 steps + count): no kilobyte-scale alt text.
+  // Labels are pre-truncated by the caller; grapheme-safety enforced again defensively.
+  const seq = steps.map((s) => `${truncateGraphemes(s.from, 24)} → ${truncateGraphemes(s.to, 24)}`);
+  return `${archId} ${flowId} flow: ${summarizeList(seq, 6)}`;
 }

@@ -70,7 +70,13 @@ describe('timeline', () => {
     const { plan } = planFlow(need(model.flows[0], 'flow'), model, 'system');
     const { timeline, fatal } = compileTimeline(plan);
     expect(fatal).toBe(false);
-    expect(need(timeline.nodes[0], 'node')).toEqual({ id: 'request.s0.o0', startMs: 0, durMs: MOTION_TOKENS.activation.durMs, deps: [], line: 9 });
+    expect(need(timeline.nodes[0], 'node')).toEqual({
+      id: 'request.s0.o0',
+      startMs: 0,
+      durMs: MOTION_TOKENS.activation.durMs,
+      deps: [],
+      line: 9,
+    });
     expect(timeline.nodes[1]?.deps).toEqual(['request.s0.o0']);
     expect(timeline.totalMs).toBe(timeline.nodes.reduce((m, n) => Math.max(m, n.startMs + n.durMs), 0));
     expect(JSON.stringify(timeline)).not.toMatch(/svg|smil|mpath/i);

@@ -18,6 +18,7 @@ import { compileAnimation, type AnimationIR } from '../animation/ir.js';
 import { compile } from '../core/compiler.js';
 import type { ArchFlow, ArchModel } from '../core/ir.js';
 import { ElkLayout, type LayoutEngine, type PlacedGraph, toScene } from '../core/layout.js';
+import { summarizeList, truncateGraphemes } from '../core/suggest.js';
 import { planFlow, type FlowPlan } from '../flow/plan.js';
 import { compileTimeline, type Timeline } from '../flow/timeline.js';
 import { parse } from '../language/parser.js';
@@ -56,7 +57,6 @@ export function describeArch(model: ArchModel, id: string): string {
   // not id-sorted: "id architecture: User → Frontend → API". Deterministic DFS with
   // id-sorted adjacency; unreachable leftovers appended in id order. Truncated safely.
   const labelOf = new Map(model.nodes.map((n) => [n.id, n.label]));
-  const short = (s: string) => (s.length > 24 ? `${[...s].slice(0, 23).join('')}…` : s);
   const outgoing = new Map<string, string[]>();
   const incoming = new Map<string, number>();
   for (const n of model.nodes) {
@@ -79,10 +79,8 @@ export function describeArch(model: ArchModel, id: string): string {
     if ((incoming.get(n.id) ?? 0) === 0) visit(n.id);
   }
   for (const n of [...model.nodes].sort((a, b) => a.id.localeCompare(b.id))) visit(n.id);
-  const names = order.map((id) => short(labelOf.get(id) ?? id));
-  const shown = names.slice(0, 6);
-  const more = names.length > 6 ? ` (+${names.length - 6} more)` : '';
-  return `${id} architecture: ${shown.join(' → ')}${more}`;
+  const names = order.map((id) => truncateGraphemes(labelOf.get(id) ?? id, 24));
+  return `${id} architecture: ${summarizeList(names, 6, ' → ')}`;
 }
 
 function writeFileAtomic(path: string, content: string): void {
@@ -497,7 +495,13 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
       // with its own owned README region `${id}.${flow}`. No "first flow wins" convention.
       // Animation IRs were compiled in the preflight phase; rendering only binds geometry here.
       for (const { flow, anim } of flows) {
-        const fgen = (variant: 'light' | 'dark'): GeneratedAssetId => ({ owner: b.id, kind: 'flow', flow: flow.id, variant, version: VERSION });
+        const fgen = (variant: 'light' | 'dark'): GeneratedAssetId => ({
+          owner: b.id,
+          kind: 'flow',
+          flow: flow.id,
+          variant,
+          version: VERSION,
+        });
         const aLight = smil.render(scene, anim, 'light', { title: `${b.id} ${flow.id} flow`, generator: fgen('light') });
         const aDark = smil.render(scene, anim, 'dark', { title: `${b.id} ${flow.id} flow`, generator: fgen('dark') });
         const named = flowAssets(b.id, flow.id);
@@ -516,10 +520,7 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
           continue;
         }
         const labelOf = new Map(model.nodes.map((n) => [n.id, n.label]));
-        const lab = (id: string) => {
-          const s = labelOf.get(id) ?? id;
-          return s.length > 24 ? `${[...s].slice(0, 23).join('')}…` : s;
-        };
+        const lab = (id: string) => truncateGraphemes(labelOf.get(id) ?? id, 24);
         const alt = describeFlowAlt(
           b.id,
           flow.id,
@@ -609,4 +610,3 @@ const isMain = process.argv[1]?.endsWith('cli.js') ?? false;
 if (isMain) {
   run(process.argv.slice(2)).then((code) => process.exit(code));
 }
-

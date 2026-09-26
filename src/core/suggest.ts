@@ -56,3 +56,16 @@ export function slugId(s: string): string {
   if (!/^[a-z]/.test(slug)) return `n-${slug}`;
   return slug;
 }
+
+// Shared presentation primitives: grapheme-safe truncation and bounded list summary.
+// Single source for alt/desc text budgets (F-M-4) — never duplicate ad-hoc slicing.
+export function truncateGraphemes(s: string, max: number): string {
+  const chars = [...s];
+  return chars.length > max ? `${chars.slice(0, max - 1).join('')}…` : s;
+}
+
+export function summarizeList(items: readonly string[], max: number, joiner = ', '): string {
+  const shown = items.slice(0, max).join(joiner);
+  const more = items.length > max ? ` (+${items.length - max} more)` : '';
+  return `${shown}${more}`;
+}

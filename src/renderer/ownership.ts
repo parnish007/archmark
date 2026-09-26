@@ -24,8 +24,11 @@ function escapeAttr(s: string): string {
 
 // Recognize OUR marker in existing file content. Version is lineage info only: any
 // archmark version counts as owned. Returns the parsed identity or null.
-export function parseOwnership(content: string): Omit<GeneratedAssetId, 'version'> & { version: string } | null {
-  const m = /<metadata\s+data-archmark="generated"\s+data-archmark-owner="([^"]*)"\s+data-archmark-kind="(static|flow)"((?:\s+data-archmark-flow="([^"]*)")?)\s+data-archmark-variant="(light|dark)"\s+data-archmark-version="([^"]*)"\s*\/>/.exec(content);
+export function parseOwnership(content: string): (Omit<GeneratedAssetId, 'version'> & { version: string }) | null {
+  const m =
+    /<metadata\s+data-archmark="generated"\s+data-archmark-owner="([^"]*)"\s+data-archmark-kind="(static|flow)"((?:\s+data-archmark-flow="([^"]*)")?)\s+data-archmark-variant="(light|dark)"\s+data-archmark-version="([^"]*)"\s*\/>/.exec(
+      content,
+    );
   if (!m) return null;
   return {
     owner: unescape(m[1] as string),
@@ -37,7 +40,11 @@ export function parseOwnership(content: string): Omit<GeneratedAssetId, 'version
 }
 
 function unescape(s: string): string {
-  return s.replace(/&quot;/g, '"').replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&');
+  return s
+    .replace(/&quot;/g, '"')
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&');
 }
 
 // The expected logical output for a path: same owner + kind + flow (+ variant when known).
