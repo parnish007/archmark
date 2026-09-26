@@ -59,8 +59,18 @@ export function slugId(s: string): string {
 
 // Shared presentation primitives: grapheme-safe truncation and bounded list summary.
 // Single source for alt/desc text budgets (F-M-4) — never duplicate ad-hoc slicing.
+// Grapheme segmentation uses Intl.Segmenter (Node 18+, deterministic for a fixed string)
+// with a code-point fallback, so emoji/ZWJ sequences are never split mid-grapheme.
+const segmenter: Intl.Segmenter | null =
+  typeof Intl !== 'undefined' && 'Segmenter' in Intl ? new Intl.Segmenter('en', { granularity: 'grapheme' }) : null;
+
+function graphemes(s: string): string[] {
+  if (segmenter) return [...segmenter.segment(s)].map((x) => x.segment);
+  return [...s];
+}
+
 export function truncateGraphemes(s: string, max: number): string {
-  const chars = [...s];
+  const chars = graphemes(s);
   return chars.length > max ? `${chars.slice(0, max - 1).join('')}…` : s;
 }
 

@@ -80,13 +80,13 @@ export class ElkLayout implements LayoutEngine {
     // Defensive: the mapping below assumes semantic ids contain no ':' (guaranteed by the DSL
     // grammar, but ArchModel is also a library surface). Reject rather than mis-decode.
     for (const n of model.nodes) {
-      if (n.id.includes(':')) throw new LayoutError(`Node id "${n.id}" contains ':'; refusing layout.`);
+      if (n.id.includes(':') || n.id.length === 0) throw new LayoutError(`Node id "${n.id}" is not layout-safe; refusing layout.`);
     }
     for (const g of model.groups) {
-      if (g.id.includes(':')) throw new LayoutError(`Group id "${g.id}" contains ':'; refusing layout.`);
+      if (g.id.includes(':') || g.id.length === 0) throw new LayoutError(`Group id "${g.id}" is not layout-safe; refusing layout.`);
     }
     for (const e of model.edges) {
-      if (e.id.includes(':')) throw new LayoutError(`Edge id "${e.id}" contains ':'; refusing layout.`);
+      if (e.id.includes(':') || e.id.length === 0) throw new LayoutError(`Edge id "${e.id}" is not layout-safe; refusing layout.`);
     }
     // Partition check P1: members belong to exactly one group (compiler guarantees single membership
     // structurally; verify defensively since truthfulness depends on it).
@@ -209,7 +209,16 @@ export class ElkLayout implements LayoutEngine {
       }
     };
     walk(g.children, 0, 0, null);
-    const pedges: PlacedEdge[] = (g.edges ?? []).map((e) => {
+    // Duplicate ELK edge ids are corrupt output (the completeness Set below would mask them).
+    {
+      const seenEdge = new Set<string>();
+      for (const e of g.edges ?? []) {
+        if (seenEdge.has(e.id)) throw new LayoutError(`Duplicate layout edge "${e.id}"; refusing corrupt layout.`);
+        seenEdge.add(e.id);
+      }
+    }
+    const pedges: PlacedEdge[] = [];
+    for (const e of g.edges ?? []) {
       // Decode through the boundary map: unknown edge ids fail closed (never silently dropped).
       const decoded = fromElkId(e.id);
       if (decoded.kind !== 'e' || !edgeByElkId.has(e.id)) {
@@ -234,8 +243,8 @@ export class ElkLayout implements LayoutEngine {
         }
         pts.push(...chain);
       });
-      return { id: semanticId, points: pts.map((p) => ({ x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 })) };
-    });
+      pedges.push({ id: semanticId, points: pts.map((p) => ({ x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 })) });
+    }
     // Every routed edge must appear in the output: a silently dropped edge is a false diagram.
     {
       const seen = new Set(pedges.map((e) => e.id));

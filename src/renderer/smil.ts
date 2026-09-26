@@ -13,7 +13,12 @@ import { renderSceneLayer } from './scene-svg.js';
 import { type ThemeName, themeFor } from './svg.js';
 
 export interface AnimationRenderer {
-  render(scene: Scene, animation: AnimationIR, theme: ThemeName, opts?: { title?: string; desc?: string }): string;
+  render(
+    scene: Scene,
+    animation: AnimationIR,
+    theme: ThemeName,
+    opts?: { title?: string; desc?: string; generator?: GeneratedAssetId },
+  ): string;
 }
 
 function ms(v: number): string {

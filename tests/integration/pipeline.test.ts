@@ -19,6 +19,11 @@ describe('parser', () => {
     const { diagnostics } = parse('frobnicate foo\n');
     expect(diagnostics[0]?.severity).toBe('error');
   });
+  it('never blames a valid kind for an invalid id', () => {
+    const { diagnostics } = parse('service n:evil "X"\n');
+    expect(diagnostics.some((d) => d.code === 'AM1007' && d.message.includes('"service"'))).toBe(false);
+    expect(diagnostics.some((d) => d.code === 'AM1012')).toBe(true);
+  });
   it('rejects unclosed flow without swallowing', () => {
     const { ast, diagnostics } = parse('flow f\nservice a "A"\n');
     expect(diagnostics.some((d) => d.message.includes('missing "{'))).toBe(true);

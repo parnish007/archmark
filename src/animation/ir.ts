@@ -30,7 +30,8 @@ export function compileAnimation(plan: FlowPlan, timeline: Timeline): AnimationI
   timeline.nodes.forEach((n, i) => {
     if (n.id.endsWith('.settle')) return;
     const pop = flat[i];
-    if (!pop) throw new Error(`compileAnimation: plan/timeline skew at node "${n.id}" (AM3207)`);
+    if (!pop)
+      throw new Error(`compileAnimation: plan/timeline skew at node "${n.id}" in flow "${plan.flowId}" (DSL line ${plan.line}, AM3207)`);
     const token = tokenForOp(pop);
     const kind: AnimOpKind = pop.op === 'traverse' ? 'traverse' : pop.op === 'pulse' ? 'pulse' : 'activate';
     const target = pop.op === 'traverse' ? pop.edge : pop.op === 'settle' ? '' : pop.node;

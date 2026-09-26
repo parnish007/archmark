@@ -22,20 +22,36 @@ function escapeAttr(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// Recognize OUR marker in existing file content. Version is lineage info only: any
-// archmark version counts as owned. Returns the parsed identity or null.
+// Recognize OUR marker in existing file content. Tolerant by design: attribute order,
+// whitespace (including newlines), and `<metadata …></metadata>` vs self-closing form all
+// parse — a future formatter/optimizer must not turn our own output into a refusal.
+// Version is lineage info only: any archmark version counts as owned.
+// Returns the parsed identity or null.
 export function parseOwnership(content: string): (Omit<GeneratedAssetId, 'version'> & { version: string }) | null {
-  const m =
-    /<metadata\s+data-archmark="generated"\s+data-archmark-owner="([^"]*)"\s+data-archmark-kind="(static|flow)"((?:\s+data-archmark-flow="([^"]*)")?)\s+data-archmark-variant="(light|dark)"\s+data-archmark-version="([^"]*)"\s*\/>/.exec(
-      content,
-    );
-  if (!m) return null;
+  const tag = /<metadata\b([^>]*)>(?:<\/metadata>)?/.exec(content);
+  // A `<metadata>` without our marker attribute is not ours. (Self-closing `<…/>` also
+  // matches: `[^>]*` stops before `>` and the optional closer is simply absent.)
+  if (!tag || !/data-archmark="generated"/.test(tag[1] as string)) return null;
+  const attr = (name: string): string | undefined => {
+    const m = new RegExp(`${name}="([^"]*)"`).exec(tag[1] as string);
+    return m ? unescapeAttr(m[1] as string) : undefined;
+  };
+  const owner = attr('data-archmark-owner');
+  const kind = attr('data-archmark-kind');
+  const variant = attr('data-archmark-variant');
+  const version = attr('data-archmark-version');
+  if (owner === undefined || version === undefined) return null;
+  if (kind !== 'static' && kind !== 'flow') return null;
+  if (variant !== 'light' && variant !== 'dark') return null;
+  const flow = attr('data-archmark-flow');
+  if (kind === 'flow' && flow === undefined) return null;
+  if (kind === 'static' && flow !== undefined) return null;
   return {
-    owner: unescapeAttr(m[1] as string),
-    kind: m[2] as 'static' | 'flow',
-    ...(m[4] !== undefined ? { flow: unescapeAttr(m[4]) } : {}),
-    variant: m[5] as 'light' | 'dark',
-    version: unescapeAttr(m[6] as string),
+    owner,
+    kind,
+    ...(flow !== undefined ? { flow } : {}),
+    variant,
+    version,
   };
 }
 
@@ -57,4 +73,3 @@ export function isOwnedBy(content: string, expected: Omit<GeneratedAssetId, 'ver
   if (found.variant !== expected.variant) return false;
   return true;
 }
-

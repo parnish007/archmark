@@ -48,6 +48,15 @@ describe('ownership marker round-trip', () => {
     const svg = `<svg>${ownershipMarker({ ...id })}</svg>`;
     expect(parseOwnership(svg)).toEqual({ ...id });
   });
+
+  it('tolerates reordered attributes, newlines, and expanded metadata form', () => {
+    const reordered =
+      '<metadata data-archmark-version="0.1.0" data-archmark-variant="light" data-archmark-kind="static" data-archmark-owner="system" data-archmark="generated"/>';
+    expect(isOwnedBy(`<svg>${reordered}</svg>`, { ...STATIC })).toBe(true);
+    const expanded =
+      '<metadata\n  data-archmark="generated"\n  data-archmark-owner="system"\n  data-archmark-kind="static"\n  data-archmark-variant="light"\n  data-archmark-version="0.1.0"\n></metadata>';
+    expect(isOwnedBy(`<svg>${expanded}</svg>`, { ...STATIC })).toBe(true);
+  });
 });
 
 describe('bounded accessible descriptions (F-M-4)', () => {
@@ -63,6 +72,11 @@ describe('bounded accessible descriptions (F-M-4)', () => {
     expect(truncateGraphemes('🎉🎉🎉🎉🎉', 4)).toBe('🎉🎉🎉…');
     expect(summarizeList(['a', 'b', 'c'], 5)).toBe('a, b, c');
     expect(summarizeList(['a', 'b', 'c'], 2)).toBe('a, b (+1 more)');
+  });
+
+  it('never splits ZWJ grapheme clusters', () => {
+    // Family emoji is one grapheme (7 code points): truncating to 1 keeps it whole.
+    expect(truncateGraphemes('👨‍👩‍👧‍👦AB', 2)).toBe('👨‍👩‍👧‍👦…');
   });
 });
 

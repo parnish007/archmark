@@ -66,6 +66,26 @@ export function regionIdFor(key: GeneratedRegionKey): string {
   return `${key.diagramId}.${key.flowId}`;
 }
 
+// Inverse of regionIdFor (single place that understands the encoding): split a generated
+// region id back into its typed key. Diagram ids never contain dots, so the first dot
+// separates owner from flow. Returns null for malformed ids.
+export function parseRegionKey(rid: string): GeneratedRegionKey | null {
+  const dot = rid.indexOf('.');
+  if (dot <= 0 || dot === rid.length - 1) return null;
+  const diagramId = rid.slice(0, dot);
+  const flowId = rid.slice(dot + 1);
+  if (!/^[A-Za-z0-9_-]+$/.test(diagramId) || !/^[A-Za-z0-9_-]+$/.test(flowId)) return null;
+  return { diagramId, kind: 'flow', flowId };
+}
+
+// True when a generated region id belongs to the given diagram (static region itself
+// or one of its flow regions). Uses parseRegionKey, never ad-hoc string surgery.
+export function isOwnerRegion(rid: string, diagramId: string): boolean {
+  if (rid === diagramId) return true;
+  const key = parseRegionKey(rid);
+  return key !== null && key.diagramId === diagramId;
+}
+
 function failClosed(md: string): MarkdownRegionIndex {
   const idx = scan(md);
   if (idx.fatal) {
@@ -97,10 +117,8 @@ export function patchRegion(md: string, key: GeneratedRegionKey, tag: string): s
     throw new PatchError(`Refusing to patch: flow region "${rid}" has no owning source block "${key.diagramId}"`, idx.diagnostics);
   }
   let anchor = ownerSrc.comment.end;
-  const ownerStatic = idx.generated.find((x) => x.id === key.diagramId);
-  if (ownerStatic) anchor = Math.max(anchor, ownerStatic.endComment.end);
   for (const g of idx.generated) {
-    if (g.id.startsWith(`${key.diagramId}.`)) anchor = Math.max(anchor, g.endComment.end);
+    if (isOwnerRegion(g.id, key.diagramId)) anchor = Math.max(anchor, g.endComment.end);
   }
   return `${md.slice(0, anchor)}\n\n${tag}\n${md.slice(anchor)}`;
 }

@@ -215,9 +215,12 @@ export function parse(source: string): { ast: Ast; diagnostics: Diagnostic[] } {
       else ast.components.push(comp);
       return;
     }
-    // kind-like but unknown → helpful error (not generic unrecognized)
+    // kind-like but unknown → helpful error (not generic unrecognized).
+    // Only when the leading word is genuinely not a kind: if it IS a valid kind, the
+    // statement failed for another reason (e.g. an invalid id like `n:evil`) and the
+    // generic AM1012 below is the honest diagnostic — never blame the kind.
     const kindGuess = t.match(new RegExp(`^(${IDENT_SRC})\\s+`));
-    if (kindGuess && !t.includes('->')) {
+    if (kindGuess && !t.includes('->') && !(NODE_KINDS as readonly string[]).includes(kindGuess[1] as string)) {
       diagnostics.push({
         code: 'AM1007',
         line,

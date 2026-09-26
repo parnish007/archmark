@@ -49,7 +49,12 @@ export function staticAssets(blockId: string): { light: string; dark: string } {
 
 export function flowAssets(blockId: string, flowId: string): { light: string; dark: string; region: string } {
   const base = diagramBase(blockId);
-  return { light: `${base}.${flowId}.light.svg`, dark: `${base}.${flowId}.dark.svg`, region: `${blockId}.${flowId}` };
+  // Region id is NOT re-encoded here: regionIdFor (markdown layer) owns the vocabulary.
+  return {
+    light: `${base}.${flowId}.light.svg`,
+    dark: `${base}.${flowId}.dark.svg`,
+    region: regionIdFor({ diagramId: blockId, kind: 'flow', flowId }),
+  };
 }
 
 export function describeArch(model: ArchModel, id: string): string {
@@ -367,7 +372,9 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
   }
   // Aggregate cap BEFORE any layout/render: a hostile-but-legal multi-block document is
   // rejected cheaply (ELK layout is the expensive stage). Counts production AnimationIR
-  // ops, not estimates. Applies to check mode too: a document build would reject is stale.
+  // ops — i.e. rendered operations, excluding the timing-only settle node (so the limit
+  // is ~5% looser than a timeline-node count; deliberate, documented here).
+  // Applies to check mode too: a document build would reject is stale.
   const MAX_TOTAL_OPS = 2000;
   if (totalOps > MAX_TOTAL_OPS) {
     console.error(`archmark: error: document compiles to ${totalOps} animation events (> ${MAX_TOTAL_OPS}). Split flows across documents.`);
@@ -422,7 +429,7 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
   // Phase 2 (expensive): layout + scene + render, only for validated jobs.
   // No architecture semantics are decided here; all planning already succeeded above.
   let out = md;
-  const pendingWrites: { path: string; content: string }[] = [];
+  const pendingWrites: { path: string; content: string; expect?: Omit<GeneratedAssetId, 'version'> }[] = [];
   const smil = new SmilRenderer();
   for (const { b, model, flows } of jobs) {
     let placed: PlacedGraph | undefined;
@@ -481,7 +488,10 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
           out = next;
         }
       } else {
-        pendingWrites.push({ path: join(dir, lf), content: light }, { path: join(dir, df), content: dark });
+        pendingWrites.push(
+          { path: join(dir, lf), content: light, expect: { owner: b.id, kind: 'static', variant: 'light' } },
+          { path: join(dir, df), content: dark, expect: { owner: b.id, kind: 'static', variant: 'dark' } },
+        );
         try {
           out = patchReadme(out, b.id, renderTag(b.id, `./${lf}`, `./${df}`, describeArch(model, b.id)));
         } catch (e) {
@@ -547,7 +557,10 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
             out = next;
           }
         } else {
-          pendingWrites.push({ path: join(dir, alf), content: aLight }, { path: join(dir, adf), content: aDark });
+          pendingWrites.push(
+            { path: join(dir, alf), content: aLight, expect: { owner: b.id, kind: 'flow', flow: flow.id, variant: 'light' } },
+            { path: join(dir, adf), content: aDark, expect: { owner: b.id, kind: 'flow', flow: flow.id, variant: 'dark' } },
+          );
           try {
             out = patchRegion(out, regionKey, renderTag(regionId, `./${alf}`, `./${adf}`, alt));
           } catch (e) {
@@ -584,7 +597,25 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
     return 1;
   }
   try {
-    for (const w of pendingWrites) sink.writeFileAtomic(w.path, w.content);
+    for (const w of pendingWrites) {
+      // Re-verify ownership at commit time: the preflight check and the write are not
+      // atomic, so a file swapped in between is re-checked here (narrows the TOCTOU
+      // window to the rename itself; a mid-commit failure still reruns cleanly).
+      if (w.expect && existsSync(w.path)) {
+        let current: string;
+        try {
+          current = readFileSync(w.path, 'utf8');
+        } catch (e) {
+          console.error(`archmark: error: cannot read ${w.path} (${(e as Error).message})`);
+          return 1;
+        }
+        if (!isOwnedBy(current, w.expect)) {
+          console.error(`archmark: error: refusing to overwrite existing non-ArchMark file "${w.path}". Rerun build to repair.`);
+          return 1;
+        }
+      }
+      sink.writeFileAtomic(w.path, w.content);
+    }
     if (out !== md) sink.writeFileAtomic(abs, out);
   } catch (e) {
     console.error(`archmark: error: commit failed (${(e as Error).message}); rerun build to repair.`);
