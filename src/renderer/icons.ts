@@ -1,4 +1,6 @@
 // Bespoke ArchMark Core icons v0 — 24 grid, stroke 2, round caps, currentColor.
+// Every NodeKind has an explicit icon (see tests/renderer/icons.test.ts); iconFor
+// falls back to service only for invalid runtime input, never for a valid kind.
 // Optical fixes from iconography critique applied (storage/cache split, agent/browser dots,
 // worker hub, gateway ticks, cloud lift).
 const S = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
@@ -38,6 +40,8 @@ export const ICONS: Record<string, string> = {
   cluster: wrap(
     '<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/>',
   ),
+  boundary: wrap('<rect x="4.5" y="4.5" width="15" height="15" rx="3" stroke-dasharray="4 2.6"/>'),
+  region: wrap('<path d="M4 6.5L8.5 4.5l3.5 1.5 3.5-1.5L20 6.5v11l-4.5-2-3.5 1.5-3.5-1.5L4 17.5z"/><path d="M8.5 4.5v11M15.5 4.5v11"/>'),
   network: wrap(
     '<circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7.5 7.5l3.5 8M16.5 7.5l-3.5 8M8.2 6h7.6"/>',
   ),
