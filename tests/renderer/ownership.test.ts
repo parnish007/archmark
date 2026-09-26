@@ -44,9 +44,14 @@ describe('ownership marker round-trip', () => {
   });
 
   it('round-trips values needing XML escaping', () => {
-    const id = { owner: 'a&b', kind: 'static', variant: 'light', version: '1<2' } as const;
+    const id = { owner: 'a&b', kind: 'static', variant: 'light', version: '2.0.0-rc.1+build' } as const;
     const svg = `<svg>${ownershipMarker({ ...id })}</svg>`;
     expect(parseOwnership(svg)).toEqual({ ...id });
+  });
+
+  it('rejects malformed version provenance', () => {
+    const bad = ownershipMarker({ ...STATIC }).replace('0.1.0', 'not a version!!');
+    expect(isOwnedBy(`<svg>${bad}</svg>`, { ...STATIC })).toBe(false);
   });
 
   it('tolerates reordered attributes, newlines, and expanded metadata form', () => {
@@ -56,6 +61,48 @@ describe('ownership marker round-trip', () => {
     const expanded =
       '<metadata\n  data-archmark="generated"\n  data-archmark-owner="system"\n  data-archmark-kind="static"\n  data-archmark-variant="light"\n  data-archmark-version="0.1.0"\n></metadata>';
     expect(isOwnedBy(`<svg>${expanded}</svg>`, { ...STATIC })).toBe(true);
+  });
+});
+
+describe('structural ownership recognition (F-NEW-1)', () => {
+  const exact = ownershipMarker({ ...STATIC });
+  const contexts = {
+    comment: `<svg><!-- ${exact} --></svg>`,
+    cdata: `<svg><text><![CDATA[${exact}]]></text></svg>`,
+    text: `<svg><text>${exact.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</text></svg>`,
+    desc: `<svg><desc>${exact.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</desc></svg>`,
+    title: `<svg><title>${exact.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</title></svg>`,
+    nested: `<svg><defs><g>${exact}</g></defs></svg>`,
+    nonRoot: `<foo>${exact}</foo>`,
+    malformed: `<svg>${exact.slice(0, 60)}`,
+    html: `<html><body>${exact}</body></html>`,
+    plain: `here is the marker: ${exact}`,
+  } as const;
+  for (const [name, content] of Object.entries(contexts)) {
+    it(`refuses exact marker in wrong context: ${name}`, () => {
+      expect(parseOwnership(content)).toBeNull();
+      expect(isOwnedBy(content, { ...STATIC })).toBe(false);
+    });
+  }
+
+  it('refuses duplicate ownership metadata blocks', () => {
+    const dup = `<svg>${exact}${exact}</svg>`;
+    expect(parseOwnership(dup)).toBeNull();
+    expect(isOwnedBy(dup, { ...STATIC })).toBe(false);
+  });
+
+  it('refuses marker-less plausible legacy SVG', () => {
+    const legacy =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" role="img"><title>system architecture</title><rect width="100" height="100"/></svg>';
+    expect(parseOwnership(legacy)).toBeNull();
+    expect(isOwnedBy(legacy, { ...STATIC })).toBe(false);
+  });
+
+  it('requires non-empty well-formed version provenance', () => {
+    const noVersion = exact.replace(/ data-archmark-version="[^"]*"/, '');
+    expect(isOwnedBy(`<svg>${noVersion}</svg>`, { ...STATIC })).toBe(false);
+    const badVersion = exact.replace('0.1.0', 'not a version!!');
+    expect(isOwnedBy(`<svg>${badVersion}</svg>`, { ...STATIC })).toBe(false);
   });
 });
 

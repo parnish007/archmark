@@ -11,6 +11,9 @@ importers:
       elkjs:
         specifier: 0.12.0
         version: 0.12.0
+      fast-xml-parser:
+        specifier: 4.5.1
+        version: 4.5.1
     devDependencies:
       '@biomejs/biome':
         specifier: 1.9.4
@@ -18,9 +21,6 @@ importers:
       '@types/node':
         specifier: ^22.7.4
         version: 22.20.4
-      fast-xml-parser:
-        specifier: 4.5.1
-        version: 4.5.1
       pixelmatch:
         specifier: 7.1.0
         version: 7.1.0
