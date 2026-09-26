@@ -1,6 +1,5 @@
 name: ci
-# Status: configured for Ubuntu + Windows, Node 24. Remote runs not yet observed —
-# do not claim "verified" until green runs exist. macOS intentionally untested (unclaimed).
+# Status: Ubuntu + Windows, Node 24, green on main. macOS intentionally untested (unclaimed).
 on:
   push:
     branches: [main]
@@ -29,6 +28,7 @@ jobs:
       - run: pnpm exec biome format src tests scripts
       - run: pnpm test
       - run: pnpm build
+      - run: node scripts/generate-icon-gallery.js --check
       - run: node ./dist/cli/cli.js build README.md
       - run: node ./dist/cli/cli.js check README.md
       - run: node ./dist/cli/cli.js build examples/hero/README.md

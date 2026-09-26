@@ -22,7 +22,8 @@
     "format:check": "biome format src tests scripts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "node ./dist/cli/cli.js check"
+    "check": "node ./dist/cli/cli.js check",
+    "docs:gallery": "node scripts/generate-icon-gallery.js"
   },
   "repository": {
     "type": "git",
