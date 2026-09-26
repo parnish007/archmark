@@ -1,5 +1,5 @@
-name: browser-probes
-# Non-blocking: generated-output animation matrix (local files, 3 engines).
+name: browser-compat
+# Non-blocking: generated-output animation compatibility (local files, 3 engines).
 # Manual or nightly; never gates PRs. No secrets; read-only.
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
 permissions:
   contents: read
 jobs:
-  probes:
+  compat:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
