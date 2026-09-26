@@ -7,6 +7,7 @@ import { FAIL_ECHO_MS, MOTION_TOKENS, type MotionToken } from '../animation/toke
 import type { Scene } from '../core/layout.js';
 import { escapeXmlText } from '../core/suggest.js';
 import { IdScope } from './ids.js';
+import { ownershipMarker, type GeneratedAssetId } from './ownership.js';
 import { renderSceneLayer } from './scene-svg.js';
 import { type ThemeName, themeFor } from './svg.js';
 
@@ -28,7 +29,12 @@ function easeAttrs(token: MotionToken, intervals: number): string {
 }
 
 export class SmilRenderer implements AnimationRenderer {
-  render(scene: Scene, animation: AnimationIR, themeName: ThemeName, opts: { title?: string; desc?: string } = {}): string {
+  render(
+    scene: Scene,
+    animation: AnimationIR,
+    themeName: ThemeName,
+    opts: { title?: string; desc?: string; generator?: GeneratedAssetId } = {},
+  ): string {
     const t = themeFor(themeName);
     const ids = new IdScope('am');
     const arrowId = ids.fixed('arrow');
@@ -48,6 +54,9 @@ export class SmilRenderer implements AnimationRenderer {
       `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${scene.w}" height="${scene.h}" viewBox="0 0 ${scene.w} ${scene.h}" role="img" aria-labelledby="${titleId} ${descId}">`,
     );
     parts.push(`<title id="${titleId}">${escapeXmlText(title)}</title><desc id="${descId}">${escapeXmlText(desc)}</desc>`);
+    // Ownership marker: deterministic, invisible. Placed AFTER title/desc so assistive
+    // technology keeps first-child title/desc ordering; recognition scans all content.
+    if (opts.generator) parts.push(ownershipMarker(opts.generator));
     parts.push(`<rect width="${scene.w}" height="${scene.h}" fill="${t.bg}"/>`);
     parts.push(`<defs>${layer.defs}</defs>`);
     parts.push(layer.body);

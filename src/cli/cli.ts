@@ -33,6 +33,7 @@ import {
   validateSvgName,
   type ArchBlock,
 } from '../markdown/extract.js';
+import { isOwnedBy, type GeneratedAssetId } from '../renderer/ownership.js';
 import { SmilRenderer, describeFlowAlt } from '../renderer/smil.js';
 import { renderStatic } from '../renderer/svg.js';
 
@@ -374,10 +375,55 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
     console.error(`archmark: error: document compiles to ${totalOps} animation events (> ${MAX_TOTAL_OPS}). Split flows across documents.`);
     return 1;
   }
+  // Ownership preflight (still cheap: paths derive from jobs, no geometry needed).
+  // Every planned output that already exists must be recognized as ArchMark-owned for
+  // that exact logical output; otherwise fail closed BEFORE any layout, render, or write.
+  // The marker prevents ACCIDENTAL overwrite only — not a barrier against malice (§28).
+  const dir = dirname(abs);
+  {
+    const planned: { file: string; expect: Omit<GeneratedAssetId, 'version'> }[] = [];
+    for (const { b, flows } of jobs) {
+      const pair = staticAssets(b.id);
+      planned.push(
+        { file: pair.light, expect: { owner: b.id, kind: 'static', variant: 'light' } },
+        { file: pair.dark, expect: { owner: b.id, kind: 'static', variant: 'dark' } },
+      );
+      for (const { flow } of flows) {
+        const named = flowAssets(b.id, flow.id);
+        planned.push(
+          { file: named.light, expect: { owner: b.id, kind: 'flow', flow: flow.id, variant: 'light' } },
+          { file: named.dark, expect: { owner: b.id, kind: 'flow', flow: flow.id, variant: 'dark' } },
+        );
+      }
+    }
+    for (const p of planned) {
+      let name: string;
+      try {
+        name = validateSvgName(p.file);
+      } catch (e) {
+        console.error((e as Error).message);
+        return 1;
+      }
+      const abs = join(dir, name);
+      if (!existsSync(abs)) continue;
+      let current: string;
+      try {
+        current = readFileSync(abs, 'utf8');
+      } catch (e) {
+        console.error(`archmark: error: cannot read ${p.file} (${(e as Error).message})`);
+        return 1;
+      }
+      if (!isOwnedBy(current, p.expect)) {
+        console.error(
+          `archmark: error: refusing to overwrite existing non-ArchMark file "${p.file}" (expected ${p.expect.kind} output of diagram "${p.expect.owner}"). Move or remove the file, or choose another diagram id.`,
+        );
+        return 1;
+      }
+    }
+  }
   // Phase 2 (expensive): layout + scene + render, only for validated jobs.
   // No architecture semantics are decided here; all planning already succeeded above.
   let out = md;
-  const dir = dirname(abs);
   const pendingWrites: { path: string; content: string }[] = [];
   const smil = new SmilRenderer();
   for (const { b, model, flows } of jobs) {
@@ -401,8 +447,9 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
       const renderPlaced = placed;
       if (!renderPlaced) throw new Error('unreachable: placed checked above');
       const scene = toScene(model, renderPlaced, b.id);
-      const light = renderStatic(scene, 'light', { title: `${b.id} architecture` });
-      const dark = renderStatic(scene, 'dark', { title: `${b.id} architecture` });
+      const gen = (variant: 'light' | 'dark'): GeneratedAssetId => ({ owner: b.id, kind: 'static', variant, version: VERSION });
+      const light = renderStatic(scene, 'light', { title: `${b.id} architecture`, generator: gen('light') });
+      const dark = renderStatic(scene, 'dark', { title: `${b.id} architecture`, generator: gen('dark') });
       const pair = staticAssets(b.id);
       let lf: string;
       let df: string;
@@ -450,8 +497,9 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
       // with its own owned README region `${id}.${flow}`. No "first flow wins" convention.
       // Animation IRs were compiled in the preflight phase; rendering only binds geometry here.
       for (const { flow, anim } of flows) {
-        const aLight = smil.render(scene, anim, 'light', { title: `${b.id} ${flow.id} flow` });
-        const aDark = smil.render(scene, anim, 'dark', { title: `${b.id} ${flow.id} flow` });
+        const fgen = (variant: 'light' | 'dark'): GeneratedAssetId => ({ owner: b.id, kind: 'flow', flow: flow.id, variant, version: VERSION });
+        const aLight = smil.render(scene, anim, 'light', { title: `${b.id} ${flow.id} flow`, generator: fgen('light') });
+        const aDark = smil.render(scene, anim, 'dark', { title: `${b.id} ${flow.id} flow`, generator: fgen('dark') });
         const named = flowAssets(b.id, flow.id);
         // Typed region key: Markdown determines owner-anchored placement from the index.
         // CLI describes desired output; it never computes anchor offsets (no glue).

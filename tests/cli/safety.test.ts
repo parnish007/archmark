@@ -139,6 +139,61 @@ describe('aggregate animation cap', () => {
   }, 120000);
 });
 
+describe('generated file ownership (F-M-3)', () => {
+  const SIMPLE = '<!-- archmark id=demo\nservice a "A"\nservice b "B"\na -> b\n-->\n';
+  it('first build creates owned outputs; second build replaces them', async () => {
+    workdir();
+    writeFileSync('README.md', SIMPLE);
+    expect(await run(['build', 'README.md'])).toBe(0);
+    expect(await run(['build', 'README.md'])).toBe(0);
+    expect(await run(['check', 'README.md'])).toBe(0);
+  });
+
+  it('refuses to overwrite an unrelated user SVG (no writes at all)', async () => {
+    workdir();
+    writeFileSync('README.md', SIMPLE);
+    writeFileSync('archmark.demo.light.svg', '<svg><circle/></svg>');
+    let writes = 0;
+    const code = await run(['build', 'README.md'], {
+      fs: {
+        writeFileAtomic: () => {
+          writes++;
+        },
+        readdir: () => [] as string[],
+      },
+    });
+    expect(code).toBe(1);
+    expect(writes).toBe(0);
+    expect(readFileSync('archmark.demo.light.svg', 'utf8')).toBe('<svg><circle/></svg>');
+  });
+
+  it('refuses text files, partial markers, and wrong-owner markers', async () => {
+    for (const content of [
+      'hello, I am a text file',
+      '<svg><metadata data-archmark="generated"/></svg>',
+      '<svg><metadata data-archmark="generated" data-archmark-owner="other" data-archmark-kind="static" data-archmark-variant="light" data-archmark-version="0.1.0"/></svg>',
+      '<svg><metadata data-archmark="generated" data-archmark-owner="demo" data-archmark-kind="flow" data-archmark-flow="x" data-archmark-variant="light" data-archmark-version="0.1.0"/></svg>',
+    ]) {
+      workdir();
+      writeFileSync('README.md', SIMPLE);
+      writeFileSync('archmark.demo.light.svg', content);
+      const code = await run(['build', 'README.md']);
+      expect(code).toBe(1);
+      expect(readFileSync('archmark.demo.light.svg', 'utf8')).toBe(content);
+    }
+  });
+
+  it('accepts variant-matched owned files but refuses cross-variant mismatch', async () => {
+    workdir();
+    writeFileSync('README.md', SIMPLE);
+    expect(await run(['build', 'README.md'])).toBe(0);
+    // Swap light content into the dark path: build must refuse (variant mismatch).
+    const light = readFileSync('archmark.demo.light.svg', 'utf8');
+    writeFileSync('archmark.demo.dark.svg', light);
+    expect(await run(['build', 'README.md'])).toBe(1);
+  });
+});
+
 describe('descriptive alt text', () => {
   it('describeArch joins labels deterministically with truncation', () => {
     const { ast } = parse('service b "Beta"\nservice a "Alpha With A Very Long Label Indeed Yes"\n');
