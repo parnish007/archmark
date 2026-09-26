@@ -102,3 +102,49 @@ describe('group truthfulness (adversarial)', () => {
     }
   }, 60000);
 });
+
+describe('layout internal identity namespace (F-B-1)', () => {
+  // Semantic IDs that resemble (or equal) internal layout identities must lay out
+  // truthfully. Semantic IDs are NEVER modified; only the layout adapter remaps.
+  const CASES: [string, string][] = [
+    ['node collides with group container id', 'service __group__p "Ghost"\ngroup p "P" {\nservice w "W"\n}\n__group__p -> w\n'],
+    ['node resembles group container of another group', 'service __group__backend "X"\ngroup backend "B" {\nservice v "V"\n}\n__group__backend -> v\n'],
+    ['node resembles node-namespace prefix', 'service __node__x "X"\nservice y "Y"\n__node__x -> y\n'],
+    ['plain reserved-looking words', 'service group "G"\nservice node "N"\nservice root "R"\ngroup -> node\nnode -> root\n'],
+    ['dunder edge cases', 'service __root__ "R"\nservice _group "G"\nservice ___ "U"\nservice node_group "NG"\nservice group_node "GN"\n__root__ -> _group\n_group -> ___\n___ -> node_group\nnode_group -> group_node\n'],
+    ['single letters incl. kind initials', 'service A "A"\nservice a "a"\nservice n "n"\nservice g "g"\nservice e "e"\nA -> a\na -> n\nn -> g\ng -> e\n'],
+    ['group id that looks like a node id', 'service u "U"\ngroup w "WG" {\nservice v "V"\n}\nu -> v\n'],
+  ];
+  for (const [name, src] of CASES) {
+    it(`lays out truthfully: ${name}`, async () => {
+      const { model, fatal } = build(src);
+      expect(fatal).toBe(false);
+      const placed = await new ElkLayout().layout(model);
+      // Every semantic node id survives layout untouched (no renaming, no loss).
+      const wantNodes = new Set(model.nodes.map((n) => n.id));
+      const gotNodes = new Set(placed.nodes.map((n) => n.id));
+      expect(gotNodes).toEqual(wantNodes);
+      // Every group survives with its semantic id and contains exactly its members.
+      expect(new Set(placed.groups.map((g) => g.id))).toEqual(new Set(model.groups.map((g) => g.id)));
+      const scene = toScene(model, placed);
+      expect(scene.groups.every((g) => g.truthful)).toBe(true);
+    }, 30000);
+  }
+
+  it('member ids resembling group ids stay with their own group', async () => {
+    const src =
+      'group alpha "A" {\nservice __group__beta "M"\n}\ngroup beta "B" {\nservice v "V"\n}\nservice solo "S"\n__group__beta -> v\nv -> solo\n';
+    const { model, fatal } = build(src);
+    expect(fatal).toBe(false);
+    const placed = await new ElkLayout().layout(model);
+    const scene = toScene(model, placed);
+    const byId = new Map(scene.nodes.map((n) => [n.id, n]));
+    const alpha = need(
+      scene.groups.find((g) => g.id === 'alpha'),
+      'alpha',
+    );
+    const m = need(byId.get('__group__beta'), 'member');
+    expect(m.x).toBeGreaterThanOrEqual(alpha.x - 1);
+    expect(m.x + m.w).toBeLessThanOrEqual(alpha.x + alpha.w + 1);
+  }, 30000);
+});

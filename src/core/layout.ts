@@ -36,6 +36,25 @@ export interface LayoutEngine {
 }
 export class LayoutError extends Error {}
 
+// Layout-boundary identity mapping (layout adapter ONLY — semantic IDs in Architecture IR
+// are never modified, renamed, or parsed here).
+//
+// Internal ELK ids live in three disjoint namespaces prefixed with ':', a character the DSL
+// identifier grammar (IDENT_SRC) forbids. A user semantic id can therefore NEVER collide with
+// an internal id, and node / group / edge namespaces can never collide with each other.
+// Decoding is total and fail-closed: unknown, duplicate, or missing layout ids throw.
+type ElkKind = 'n' | 'g' | 'e';
+const toElkId = (kind: ElkKind, semantic: string): string => `${kind}:${semantic}`;
+function fromElkId(id: string): { kind: ElkKind; semantic: string } {
+  const i = id.indexOf(':');
+  const kind = i < 0 ? '' : id.slice(0, i);
+  const semantic = i < 0 ? '' : id.slice(i + 1);
+  if ((kind !== 'n' && kind !== 'g' && kind !== 'e') || semantic.length === 0) {
+    throw new LayoutError(`Unknown layout id "${id}"; refusing corrupt layout.`);
+  }
+  return { kind, semantic };
+}
+
 // Compound group padding (deterministic): label band 40 top, 24 elsewhere.
 const GROUP_PAD = { top: 40, left: 24, bottom: 24, right: 24 };
 
@@ -58,6 +77,17 @@ export class ElkLayout implements LayoutEngine {
   }
   async layout(model: ArchModel, opts: { timeoutMs?: number } = {}): Promise<PlacedGraph> {
     const timeoutMs = opts.timeoutMs ?? 10000;
+    // Defensive: the mapping below assumes semantic ids contain no ':' (guaranteed by the DSL
+    // grammar, but ArchModel is also a library surface). Reject rather than mis-decode.
+    for (const n of model.nodes) {
+      if (n.id.includes(':')) throw new LayoutError(`Node id "${n.id}" contains ':'; refusing layout.`);
+    }
+    for (const g of model.groups) {
+      if (g.id.includes(':')) throw new LayoutError(`Group id "${g.id}" contains ':'; refusing layout.`);
+    }
+    for (const e of model.edges) {
+      if (e.id.includes(':')) throw new LayoutError(`Edge id "${e.id}" contains ':'; refusing layout.`);
+    }
     // Partition check P1: members belong to exactly one group (compiler guarantees single membership
     // structurally; verify defensively since truthfulness depends on it).
     const memberOf = new Map<string, string>();
@@ -74,7 +104,7 @@ export class ElkLayout implements LayoutEngine {
       return { width: w, height: h };
     };
     const byId = new Map(model.nodes.map((n) => [n.id, n]));
-    const leaf = (id: string) => ({ id, ...sizeOf(byId.get(id)?.label ?? id) });
+    const leaf = (id: string) => ({ id: toElkId('n', id), ...sizeOf(byId.get(id)?.label ?? id) });
     const grouped = new Set(memberOf.keys());
     // ELK compound tree: groups become container nodes; members parent-relative.
     interface ElkN {
@@ -87,7 +117,7 @@ export class ElkLayout implements LayoutEngine {
     const groupNodes: ElkN[] = [...model.groups]
       .sort((a, b) => a.id.localeCompare(b.id))
       .map((g) => ({
-        id: `__group__${g.id}`,
+        id: toElkId('g', g.id),
         children: [...g.members].sort().map(leaf),
         layoutOptions: {
           'elk.algorithm': 'layered',
@@ -104,14 +134,16 @@ export class ElkLayout implements LayoutEngine {
       ...groupNodes,
     ];
     // Skip self-edges in ELK input (drawn as loops by renderer); ELK cannot route them.
-    const elkEdges = [...model.edges]
+    // Endpoints reference internal node ids; edge ids live in the disjoint 'e:' namespace.
+    const routedEdges = [...model.edges]
       .filter((e) => e.from !== e.to)
-      .sort((a, b) => a.id.localeCompare(b.id))
-      .map((e) => ({
-        id: e.id,
-        sources: [e.from],
-        targets: [e.to],
-      }));
+      .sort((a, b) => a.id.localeCompare(b.id));
+    const elkEdges = routedEdges.map((e) => ({
+      id: toElkId('e', e.id),
+      sources: [toElkId('n', e.from)],
+      targets: [toElkId('n', e.to)],
+    }));
+    const edgeByElkId = new Map(routedEdges.map((e) => [toElkId('e', e.id), e]));
     const layoutP = this.elk.layout({
       id: 'root',
       layoutOptions: {
@@ -147,33 +179,50 @@ export class ElkLayout implements LayoutEngine {
     if (timer) clearTimeout(timer);
     const r1 = (v: number | undefined) => Math.round((v ?? 0) * 100) / 100;
     // Flatten compound tree: member coords are parent-relative → accumulate offsets.
-    // Edge sections are consumed as returned (absolute per ELK); P5/P6 gates verify truthfulness.
+    // Every ELK id decodes through the boundary mapping; unknown/duplicate/misplaced ids
+    // fail closed. Semantic ids are recovered from the map, never parsed from strings.
     const nodes: PlacedNode[] = [];
     const groups: PlacedGroup[] = [];
-    const groupByElkId = new Map(model.groups.map((x) => [`__group__${x.id}`, x]));
-    const walk = (kids: ElkOut[] | undefined, ox: number, oy: number) => {
+    const groupBySemantic = new Map(model.groups.map((x) => [x.id, x]));
+    const nodeBySemantic = new Map(model.nodes.map((n) => [n.id, n]));
+    const seenElk = new Set<string>();
+    const walk = (kids: ElkOut[] | undefined, ox: number, oy: number, inGroup: string | null) => {
       for (const c of kids ?? []) {
-        const gx = groupByElkId.get(c.id);
-        if (gx) {
+        if (seenElk.has(c.id)) throw new LayoutError(`Duplicate layout id "${c.id}"; refusing corrupt layout.`);
+        seenElk.add(c.id);
+        const { kind, semantic } = fromElkId(c.id);
+        if (kind === 'g') {
+          if (inGroup !== null) throw new LayoutError(`Unexpected nested layout group "${c.id}"; refusing corrupt layout.`);
+          const gx = groupBySemantic.get(semantic);
+          if (!gx) throw new LayoutError(`Unknown layout group "${c.id}"; refusing corrupt layout.`);
           const ax = ox + (c.x ?? 0);
           const ay = oy + (c.y ?? 0);
           if (c.width === undefined || c.height === undefined) {
             throw new LayoutError(`Group "${gx.id}" has no size from layout; refusing false grouping.`);
           }
           groups.push({ id: gx.id, label: gx.label, x: r1(ax), y: r1(ay), w: r1(c.width), h: r1(c.height), truthful: true });
-          walk(c.children, ax, ay);
+          walk(c.children, ax, ay, gx.id);
+        } else if (kind === 'n') {
+          if (!nodeBySemantic.has(semantic)) throw new LayoutError(`Unknown layout node "${c.id}"; refusing corrupt layout.`);
+          nodes.push({ id: semantic, x: r1(ox + (c.x ?? 0)), y: r1(oy + (c.y ?? 0)), w: c.width ?? 140, h: c.height ?? 60 });
         } else {
-          nodes.push({ id: c.id, x: r1(ox + (c.x ?? 0)), y: r1(oy + (c.y ?? 0)), w: c.width ?? 140, h: c.height ?? 60 });
+          throw new LayoutError(`Unexpected layout child "${c.id}"; refusing corrupt layout.`);
         }
       }
     };
-    walk(g.children, 0, 0);
+    walk(g.children, 0, 0, null);
     const pedges: PlacedEdge[] = (g.edges ?? []).map((e) => {
+      // Decode through the boundary map: unknown edge ids fail closed (never silently dropped).
+      const decoded = fromElkId(e.id);
+      if (decoded.kind !== 'e' || !edgeByElkId.has(e.id)) {
+        throw new LayoutError(`Unknown layout edge "${e.id}"; refusing corrupt layout.`);
+      }
+      const semanticId = decoded.semantic;
       // Hierarchical ELK edges can return MULTIPLE sections; concatenate only when joints
       // meet (end[i] == start[i+1] within epsilon). Disjoint sections would draw false
       // topology, so they fail closed instead.
       const sections = e.sections ?? [];
-      if (sections.length === 0) throw new LayoutError(`Edge "${e.id}" has no geometry from layout.`);
+      if (sections.length === 0) throw new LayoutError(`Edge "${semanticId}" has no geometry from layout.`);
       const pts: { x: number; y: number }[] = [];
       sections.forEach((s, i) => {
         const chain: { x: number; y: number }[] = [s.startPoint, ...(s.bendPoints ?? []), s.endPoint];
@@ -181,14 +230,28 @@ export class ElkLayout implements LayoutEngine {
           const prev = pts[pts.length - 1] as { x: number; y: number };
           const joint = chain[0] as { x: number; y: number };
           if (Math.hypot(joint.x - prev.x, joint.y - prev.y) > 0.5) {
-            throw new LayoutError(`Edge "${e.id}" has disjoint route sections; refusing false path.`);
+            throw new LayoutError(`Edge "${semanticId}" has disjoint route sections; refusing false path.`);
           }
           chain.shift();
         }
         pts.push(...chain);
       });
-      return { id: e.id, points: pts.map((p) => ({ x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 })) };
+      return { id: semanticId, points: pts.map((p) => ({ x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 })) };
     });
+    // Every routed edge must appear in the output: a silently dropped edge is a false diagram.
+    {
+      const seen = new Set(pedges.map((e) => e.id));
+      for (const e of routedEdges) {
+        if (!seen.has(e.id)) throw new LayoutError(`Edge "${e.id}" missing from layout output; refusing corrupt layout.`);
+      }
+    }
+    // Every model node must be placed exactly once (duplicates already rejected above).
+    {
+      const seen = new Set(nodes.map((n) => n.id));
+      for (const n of model.nodes) {
+        if (!seen.has(n.id)) throw new LayoutError(`Node "${n.id}" missing from layout output; refusing corrupt layout.`);
+      }
+    }
     // Float validation: no NaN/Infinity/non-positive dimensions reach the scene graph.
     // Missing nodes or corrupt geometry fail closed — never a plausible false diagram.
     for (const n of [...nodes, ...groups]) {
