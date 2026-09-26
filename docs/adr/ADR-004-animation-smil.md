@@ -1,23 +1,39 @@
 # ADR-004 — Animation: SMIL-primary, IR-isolated
 
-Status: SMIL_PRIMARY_CONFIRMED (with permanent static fallback). Date: 2026-09-24.
+Status: SMIL_PRIMARY_CONFIRMED (with permanent static fallback). Date: 2026-09-25.
+
+Scope of confirmation (exactly what evidence establishes — no more):
+tested GitHub preview `<img>` delivery path, in Chromium 153, Firefox 155, and Playwright
+WebKit 26.6 on Windows. "WebKit" here means the Playwright WebKit engine, NOT Safari on
+Apple hardware (still unverified). macOS runtime and logged-in Camo behavior remain
+unverified and are not claimed.
 
 Evidence: real-browser matrix (Chromium 153, Firefox 155, WebKit 26.6; Windows; probe SHAs
-91f4fbb→47d7391): every restricted-subset primitive visibly animates in the GitHub preview `<img>`
-path — animate/animateTransform/animateMotion/mpath/stagger/freeze/canonical all PASS with static
-controls at 0px. Direct-SVG attribute reads confirm timelines advance. Static fallback stays
+91f4fbb→47d7391, plus generated-output matrix on production SVGs): every restricted-subset
+primitive visibly animates in the GitHub preview `<img>` path — animate/animateTransform/
+animateMotion/mpath/stagger/freeze/canonical all PASS with static controls at 0px.
+Direct-SVG attribute reads confirm timelines advance. Static fallback stays
 architecturally mandatory (first frame complete; M3 = reduced-motion output), not a fallback backend.
 
-Proven: SVG_DELIVERY_CONFIRMED (16 isolated probes serve intact via github.com + raw).
-Unproven: README_MOTION_UNVERIFIED (no rendered pixels observed changing over time in GitHub README;
-source-markup intactness is not a motion guarantee). This ADR must not upgrade until pixel-level
-browser evidence from the actual README exists.
+Proven: SVG_DELIVERY_CONFIRMED (16 isolated probes serve intact via github.com + raw)
+and README_MOTION_CONFIRMED within the scope above (rendered pixels observed changing
+over time in the GitHub preview path on all three engines).
 
-## Probe evidence (probe/github-rendering acbbd3b → b738f18)
+## History (superseded — retained for context, not operative)
+
+The ADR previously held PROVISIONAL / DELIVERY_CONFIRMED_MOTION_UNVERIFIED status: at that
+time no browser was available in the verification environment, so pixel motion stayed
+INCONCLUSIVE and the ADR explicitly forbade upgrading until pixel-level browser evidence
+from the actual README path existed. That condition was satisfied by the 2026-09-25
+browser matrix (isolated probes) and the generated-output matrix (production SVGs), which
+promoted the status to the confirmed decision below. The old "must not upgrade" rule is
+spent — it is preserved here only as history.
+
+## Probe evidence (probe/github-rendering acbbd3b → b738f18, pre-browser phase)
+
 All 16 isolated probes deliver intact via github.com + raw (SMIL/mpath/begin/freeze/loop/gradient/clip/a11y
-verified in served source; PROBE.md preview renders references). No browser in verification env, so pixel
-motion stays INCONCLUSIVE — NOT claimed. Static delivery + fallbacks PASS; picture theming PARTIAL.
-Caching: raw immediate; Camo staleness untested → no hashed filenames (unjustified).
+verified in served source; PROBE.md preview renders references). Static delivery + fallbacks PASS;
+picture theming PARTIAL. Caching: raw immediate; Camo staleness untested → no hashed filenames (unjustified).
 
 ## Context
 GitHub strips JS; CSS survival contested; community SMIL cookbooks animate in README <img> via camo, but GitHub promises nothing.

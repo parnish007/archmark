@@ -93,3 +93,23 @@ describe('visual semantic invariants (theme-independent)', () => {
     expect(rings15px).toBeGreaterThanOrEqual(1); // fail echo ring (1.5px) proves double-ring
   }, 30000);
 });
+
+describe('scene label graphemes (F-NEW-3)', () => {
+  it('long emoji/ZWJ/combining labels truncate without splitting graphemes', async () => {
+    // 25 party + family (1 grapheme) + precomposed é + e+combining-acute + b = 29 graphemes > 22.
+    const label = `${'🎉'.repeat(25)}👨‍👩‍👧‍👦ééb`;
+    const src = `service a "${label}"\nservice b "B"\na -> b\n`;
+    const { ast } = parse(src);
+    const { model } = compile(ast);
+    const placed = await new ElkLayout().layout(model);
+    const svg = renderStatic(toScene(model, placed), 'light');
+    // Extract rendered node label text (escaped) and assert no lone surrogates / dangling marks.
+    const texts = [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1] as string);
+    expect(texts.length).toBeGreaterThan(0);
+    for (const t of texts) {
+      expect(t).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/);
+      expect(t).not.toMatch(/[\u200D]…$/); // no dangling joiner before ellipsis
+    }
+    expect(texts.some((t) => t.endsWith('…'))).toBe(true);
+  }, 30000);
+});

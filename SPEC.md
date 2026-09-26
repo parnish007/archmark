@@ -56,7 +56,7 @@ Colors light {bg #FFFFFF ink #1A2330 edge #4A5A6E muted #8A97A8 accent #2563EB g
 Required: actor, service, database, cache, queue, gateway, worker, storage, model, cloud, external, app, api, server, browser, mobile, agent, function, container, cluster, network. Each: viewBox 24, live 22, optical centering, min supported size 20px rendered (16px best-effort). No remote fetch. Vendor icons out-of-scope v0.
 
 ## 8. Static SVG contract
-Deterministic: same input+version+config → byte-identical (sorted attrs, sorted ids, fixed seed, 2dp, no timestamps). Structure: `<svg xmlns viewBox width height role=img><title/><desc/>…` + `<defs>` markers. IDs namespaced `am-node-*`/`am-edge-*`/`am-group-*` with collision suffixes. Accessible: role img, title/desc. Size <100KB target, <512KB cap. Two files: `*.light.svg`, `*.dark.svg` + `<picture>` snippet. SVGO deferred (INCONCLUSIVE benefit; see research).
+Deterministic: same input+version+config → byte-identical (sorted attrs, sorted ids, fixed seed, 2dp, no timestamps). Structure: `<svg xmlns viewBox width height role=img><title/><desc/>…` + `<defs>` markers. IDs namespaced `am-node-*`/`am-edge-*`/`am-group-*` with collision suffixes. Accessible: role img, title/desc. Size <100KB target, <512KB cap. Two files: `*.light.svg`, `*.dark.svg` + `<picture>` snippet. SVGO deferred: measured benefit negligible at current output sizes.
 
 ## 9. Animation IR contracts (production)
 ```

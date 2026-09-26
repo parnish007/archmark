@@ -21,6 +21,11 @@ export interface CompileResult {
 
 export const MAX_NODES = 5000;
 export const MAX_EDGES = 10000;
+// Semantic label cap, deliberately counted in Unicode CODE POINTS (not graphemes):
+// this is a resource-control bound (memory/output size), where code points are the honest
+// unit. Code-point iteration can never split a surrogate pair, so output stays well-formed;
+// a grapheme cluster (e.g. ZWJ sequence) may be cut mid-cluster in extreme 512+ char labels,
+// which is cosmetic-only at that scale. No presentation dependency is introduced here.
 export const MAX_LABEL = 512;
 
 export function compile(ast: Ast): CompileResult {

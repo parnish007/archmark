@@ -1,7 +1,7 @@
 // Shared scene serialization: static scene layer used by ALL renderers.
 // Animated backends add overlays/animations; they never fork node/edge/group/icon code.
 import type { Scene } from '../core/layout.js';
-import { escapeXmlAttr, escapeXmlText } from '../core/suggest.js';
+import { escapeXmlAttr, escapeXmlText, truncateGraphemes } from '../core/suggest.js';
 import { iconFor } from './icons.js';
 import type { IdScope } from './ids.js';
 import { FONT_UI, type Theme } from './tokens.js';
@@ -14,7 +14,8 @@ export interface SceneLayer {
 }
 
 export function truncate(label: string, max = 22): string {
-  return [...label].length > max ? `${[...label].slice(0, max - 1).join('')}…` : label;
+  // Single shared grapheme-safe truncation (core-owned; no new utility).
+  return truncateGraphemes(label, max);
 }
 
 export function edgeMidpoint(d: string): { x: number; y: number } {
