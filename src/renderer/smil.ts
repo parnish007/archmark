@@ -91,7 +91,7 @@ export class SmilRenderer implements AnimationRenderer {
         // Comments are not a semantic protocol and `--` in ids would break XML anyway.
         if (!pathId) throw new Error(`smil: animation references unknown edge "${op.target}"`);
         const hollow = op.style === 'hollow';
-        const r = hollow ? 4 : 6;
+        const r = hollow ? 4.5 : 7;
         const fill = hollow ? 'none' : accent;
         const stroke = hollow ? ` stroke="${accent}" stroke-width="2"` : '';
         // Packet fades out over the final 150ms so the frozen end state matches the static
@@ -138,7 +138,8 @@ export class SmilRenderer implements AnimationRenderer {
         if (!n) throw new Error(`smil: animation references unknown node "${op.target}"`);
         const cx = Math.round((n.x + n.w / 2) * 100) / 100;
         const cy = Math.round((n.y + n.h / 2) * 100) / 100;
-        return `<circle cx="${cx}" cy="${cy}" r="10" fill="${accent}" opacity="0"><animate attributeName="opacity" values="0;0.25;0" keyTimes="0;0.5;1" dur="${d}" begin="${b}" fill="freeze" ${easeAttrs(op.token, 2)}/></circle><!--${mid}-->`;
+        // Crisp presence dot (not a faint blob): small, near-full peak, same token.
+        return `<circle cx="${cx}" cy="${cy}" r="6" fill="${accent}" opacity="0"><animate attributeName="opacity" values="0;0.9;0" keyTimes="0;0.5;1" dur="${d}" begin="${b}" fill="freeze" ${easeAttrs(op.token, 2)}/></circle><!--${mid}-->`;
       }
       default: {
         // Exhaustive: future AnimOpKind values fail compile here first; unreachable at

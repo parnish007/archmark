@@ -54,13 +54,24 @@ Regenerate with `node scripts/generate-icon-gallery.js`; CI verifies freshness w
 
 ## Line, stroke, and theme rules
 
-- Node outlines: 1.5px; icons: 2px round; edges: 1.75px (see `src/renderer/tokens.ts`,
-  the single source of truth).
-- Light theme: ink `#1A2330` on `#FFFFFF`. Dark theme: ink `#E6EDF3` on `#0D1117`.
+- Node outlines: 1.5px, radius 10; icons: 2px round at 20px next to 13px/600 labels.
+  Store kinds (`database`, `storage`) render as vessel cylinders inside the same
+  footprint — shape carries semantics without changing layout.
+- Edges: 1.5px orthogonal with 8px rounded corners and small open chevrons (never
+  filled triangles); edge lines stay quieter than node borders.
+- Groups: 1px solid accent border + 7–10% accent wash + ink pill badge (no dashed
+  ghosts). One nesting hue — v0 supports a single group level.
+- Light theme: ink `#1A2330` on `#FFFFFF`. Dark theme: dimmed `#8B9BB0` outlines on
+  `#0D1117` — full-bright borders are reserved for emphasis, not structure.
 - Muted labels use the theme's muted tone; semantic color (accent blue, danger red) is
   reserved for flow behavior, never decoration.
-- Animated flows reuse the static geometry: packets travel the real routed paths, then
-  every element freezes on its final frame (`fill="freeze"`) — see `docs/animation.md`.
+- Animated flows reuse the static geometry: solid r7 packets (hollow r4.5 for
+  responses) travel the real routed paths with a fade-out tail (no parked dots),
+  then every element freezes on its final frame (`fill="freeze"`) — see
+  `docs/animation.md`.
+- All values live in `src/renderer/tokens.ts` (single source of truth) and
+  `DEFAULT_LAYOUT_STYLE` (`src/core/layout.ts`); renderers read the contract,
+  never magic numbers.
 
 ## Deterministic rendering principle
 

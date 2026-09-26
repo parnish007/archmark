@@ -48,9 +48,9 @@ Coords: 8px grid snapped, deterministic sort (id), float rounding 2dp, no timest
 Groups come from ELK compound output (truthful by construction, P5/P6 gated); `d` stays a raw
 path string by decision (single consumer need — mpath-by-reference; see code comment).
 
-## 6. Visual tokens (Calm Technical Precision v0)
-spacing [4,8,12,16,24,32,48], node pad 12–16, group 24, grid 8; radii node 8 group 12 badge 999; stroke hairline 1 edge 1.75 emphasis 2.5 node 1.5 group 1; fonts title 16/600 node 12.5/600 edge 10.5/400 meta 9.5/500; system stacks only; min 9px; truncate 22ch.
-Colors light {bg #FFFFFF ink #1A2330 edge #4A5A6E muted #8A97A8 accent #2563EB grid #EEF1F5} dark {bg #0D1117 ink #E6EDF3 edge #8B9BB0 muted #5C6A7E accent #6AA6FF grid #1B2330}. Node: white/dark fill, 1.5px border, icon 20px + label. Edge: orthogonal 1.75px, arrow 8×6 filled, label halo. Group: 12px radius, 1px dashed muted + 4% fill. Tokens live in `src/renderer/tokens.ts`.
+## 6. Visual tokens (v1 refined system)
+Layout density: node min 148×64, measure 48+units×7.4+28, group pad 52/30/30/30, ELK spacing 56/88. Radii: node 10, group 12, badge 9, edge corners 8. Strokes: edge 1.5, node 1.5, group 1. Fonts: node 13/600, edge 10.5, group badge 10/600; system stacks only; min 9px; truncate 22ch.
+Colors light {bg #FFFFFF ink #1A2330 edge #4A5A6E muted #8A97A8 accent #2563EB grid #EEF1F5} dark {bg #0D1117 ink #E6EDF3 edge #8B9BB0 muted #5C6A7E accent #6AA6FF grid #1B2330} + nodeBorder (light ink, dark #8B9BB0 dimmed). Node: fill, 1.5px border, icon 20px + label; store kinds (database/storage) render as vessel cylinders inside the same footprint. Edge: orthogonal 1.5px with 8px rounded corners, 8×6 open chevron, label halo. Group: 12px radius, 1px solid accent border + 7–10% accent wash + ink pill badge. Motion: solid packet r7 / hollow r4.5, activate dot r6 @0.9, timing tokens unchanged. Tokens live in `src/renderer/tokens.ts`; density in `DEFAULT_LAYOUT_STYLE` (`src/core/layout.ts`).
 
 ## 7. Icons v0 (bespoke core, 24 grid, stroke 2 round, currentColor)
 Required: actor, service, database, cache, queue, gateway, worker, storage, model, cloud, external, app, api, server, browser, mobile, agent, function, container, cluster, network. Each: viewBox 24, live 22, optical centering, min supported size 20px rendered (16px best-effort). No remote fetch. Vendor icons out-of-scope v0.

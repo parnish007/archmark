@@ -70,7 +70,7 @@ describe('xml structural validation', () => {
 describe('visual semantic invariants (theme-independent)', () => {
   it('request solid / static fallback complete', async () => {
     const { animated, stat } = await built();
-    expect(animated).toMatch(/<circle r="6" fill="#[0-9A-Fa-f]{6}"/);
+    expect(animated).toMatch(/<circle r="7" fill="#[0-9A-Fa-f]{6}"/);
     expect(stat).not.toMatch(/animateMotion|<animate /);
     expect(stat).toContain('role="img"');
   }, 30000);

@@ -14,3 +14,8 @@ Initial public core (not yet published to npm):
 - Semantic animation compiler (Flow → Timeline → Animation IR → verified SMIL subset)
 - CLI `init` / `build` / `check` with fail-closed README patching
 - Bespoke core icon family and Calm Technical Precision visual system
+- Refined visual system v1: open-chevron connectors with rounded corners, accent
+  container washes + pill badges, vessel-cylinder store nodes, dimmed dark outlines,
+  crisper motion presence (r7 packets, r6 activation dot)
+- Fixed intra-group edge placement (same-group edges now translate from ELK's
+  group-relative frame; H6 regression test)
