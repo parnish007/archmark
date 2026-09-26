@@ -55,25 +55,48 @@ function fromElkId(id: string): { kind: ElkKind; semantic: string } {
   return { kind, semantic };
 }
 
-// Compound group padding (deterministic): label band 40 top, 24 elsewhere.
-const GROUP_PAD = { top: 40, left: 24, bottom: 24, right: 24 };
+// Layout density (documented constraints): node footprint, group padding, and ELK
+// spacing that together set diagram air. One shipping default; experimental style
+// directions pass alternates through ElkLayout — never per-scene special cases.
+export interface LayoutStyle {
+  nodeMinW: number;
+  nodeH: number;
+  measureBase: number;
+  measureUnit: number;
+  measurePad: number;
+  groupPad: { top: number; left: number; bottom: number; right: number };
+  nodeSpacing: string;
+  layerSpacing: string;
+}
+export const DEFAULT_LAYOUT_STYLE: LayoutStyle = {
+  nodeMinW: 148,
+  nodeH: 64,
+  measureBase: 48,
+  measureUnit: 7.4,
+  measurePad: 28,
+  groupPad: { top: 52, left: 30, bottom: 30, right: 30 },
+  nodeSpacing: '56',
+  layerSpacing: '88',
+};
 
-export function measureNode(label: string): { w: number; h: number } {
+export function measureNode(label: string, style: LayoutStyle = DEFAULT_LAYOUT_STYLE): { w: number; h: number } {
   // Deterministic headless measure: CJK/emoji ~1.8×, ellipsis included.
   const segs = [...label].slice(0, 22);
   let units = 0;
   for (const ch of segs)
-    units += /[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(ch) ? 1.8 : 1;
-  const w = Math.max(140, 44 + units * 7.2 + 24);
-  return { w: Math.round(w), h: 60 };
+    units += /[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\u{1F000}-\u{1FAFF}\u{2600}-\u27BF}]/u.test(ch) ? 1.8 : 1;
+  const w = Math.max(style.nodeMinW, style.measureBase + units * style.measureUnit + style.measurePad);
+  return { w: Math.round(w), h: style.nodeH };
 }
 
 export class ElkLayout implements LayoutEngine {
   private elk: { layout: (g: never, args?: never) => Promise<never> };
-  constructor() {
+  private style: LayoutStyle;
+  constructor(style: LayoutStyle = DEFAULT_LAYOUT_STYLE) {
     const Ctor = (ElkModule as unknown as { default?: unknown })?.default ?? ElkModule;
     const C = Ctor as unknown as new (args?: unknown) => { layout: (g: never, args?: never) => Promise<never> };
     this.elk = new C();
+    this.style = style;
   }
   async layout(model: ArchModel, opts: { timeoutMs?: number } = {}): Promise<PlacedGraph> {
     const timeoutMs = opts.timeoutMs ?? 10000;
@@ -100,7 +123,7 @@ export class ElkLayout implements LayoutEngine {
       }
     }
     const sizeOf = (label: string) => {
-      const { w, h } = measureNode(label);
+      const { w, h } = measureNode(label, this.style);
       return { width: w, height: h };
     };
     const byId = new Map(model.nodes.map((n) => [n.id, n]));
@@ -122,7 +145,7 @@ export class ElkLayout implements LayoutEngine {
         layoutOptions: {
           'elk.algorithm': 'layered',
           'elk.direction': 'RIGHT',
-          'elk.padding': `[top=${GROUP_PAD.top},left=${GROUP_PAD.left},bottom=${GROUP_PAD.bottom},right=${GROUP_PAD.right}]`,
+          'elk.padding': `[top=${this.style.groupPad.top},left=${this.style.groupPad.left},bottom=${this.style.groupPad.bottom},right=${this.style.groupPad.right}]`,
           'elk.edgeRouting': 'ORTHOGONAL',
         },
       }));
@@ -148,8 +171,8 @@ export class ElkLayout implements LayoutEngine {
         'elk.algorithm': 'layered',
         'elk.direction': 'RIGHT',
         'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
-        'elk.spacing.nodeNode': '48',
-        'elk.layered.spacing.nodeNodeBetweenLayers': '72',
+        'elk.spacing.nodeNode': this.style.nodeSpacing,
+        'elk.layered.spacing.nodeNodeBetweenLayers': this.style.layerSpacing,
         'elk.edgeRouting': 'ORTHOGONAL',
         'org.eclipse.elk.randomSeed': '42',
         'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
@@ -202,7 +225,13 @@ export class ElkLayout implements LayoutEngine {
           walk(c.children, ax, ay, gx.id);
         } else if (kind === 'n') {
           if (!nodeBySemantic.has(semantic)) throw new LayoutError(`Unknown layout node "${c.id}"; refusing corrupt layout.`);
-          nodes.push({ id: semantic, x: r1(ox + (c.x ?? 0)), y: r1(oy + (c.y ?? 0)), w: c.width ?? 140, h: c.height ?? 60 });
+          nodes.push({
+            id: semantic,
+            x: r1(ox + (c.x ?? 0)),
+            y: r1(oy + (c.y ?? 0)),
+            w: c.width ?? this.style.nodeMinW,
+            h: c.height ?? this.style.nodeH,
+          });
         } else {
           throw new LayoutError(`Unexpected layout child "${c.id}"; refusing corrupt layout.`);
         }
@@ -244,6 +273,26 @@ export class ElkLayout implements LayoutEngine {
         pts.push(...chain);
       });
       pedges.push({ id: semanticId, points: pts.map((p) => ({ x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 })) });
+    }
+    // Hierarchical edge frames (H6): ELK expresses an edge's sections in the frame
+    // of the edge's lowest common ancestor — same-group edges are group-relative,
+    // cross-hierarchy edges are root-relative. Translate same-group edges by the
+    // group's absolute origin; without this, intra-group edges render at unrelated
+    // positions (false diagram). v0 supports one group level, so the LCA is the
+    // shared group or root; mixed-frame sections fail closed at the joint check above.
+    for (const e of pedges) {
+      const me = edgeByElkId.get(toElkId('e', e.id));
+      if (!me) throw new LayoutError(`Edge "${e.id}" missing from layout mapping; refusing corrupt layout.`);
+      const pf = memberOf.get(me.from) ?? null;
+      const pt = memberOf.get(me.to) ?? null;
+      if (pf !== null && pf === pt) {
+        const g = groups.find((x) => x.id === pf);
+        if (!g) throw new LayoutError(`Edge "${e.id}" references missing group "${pf}"; refusing corrupt layout.`);
+        for (const p of e.points) {
+          p.x = Math.round((p.x + g.x) * 100) / 100;
+          p.y = Math.round((p.y + g.y) * 100) / 100;
+        }
+      }
     }
     // Every routed edge must appear in the output: a silently dropped edge is a false diagram.
     {

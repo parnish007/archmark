@@ -156,4 +156,33 @@ describe('layout internal identity namespace (F-B-1)', () => {
     expect(m.x).toBeGreaterThanOrEqual(alpha.x - 1);
     expect(m.x + m.w).toBeLessThanOrEqual(alpha.x + alpha.w + 1);
   }, 30000);
+
+  it('intra-group edges terminate on their endpoint nodes (H6)', async () => {
+    // Regression: ELK expresses same-group edge sections group-relative; without
+    // LCA translation they rendered at unrelated positions (false diagram).
+    const src = 'group g "G" {\nservice a "A"\nservice b "B"\n}\na -> b\n';
+    const { model, fatal } = build(src);
+    expect(fatal).toBe(false);
+    const placed = await new ElkLayout().layout(model);
+    const scene = toScene(model, placed);
+    const edge = need(
+      scene.edges.find((e) => e.id === 'a--b'),
+      'edge a--b',
+    );
+    const pts = edge.d
+      .replace(/^M/, '')
+      .split('L')
+      .map((s) => s.trim().split(/\s+/).map(Number));
+    const onNode = (p: number[], id: string): boolean => {
+      const n = need(
+        scene.nodes.find((x) => x.id === id),
+        `node ${id}`,
+      );
+      return (
+        (p[0] as number) >= n.x - 2 && (p[0] as number) <= n.x + n.w + 2 && (p[1] as number) >= n.y - 2 && (p[1] as number) <= n.y + n.h + 2
+      );
+    };
+    expect(onNode(need(pts[0], 'first'), 'a')).toBe(true);
+    expect(onNode(need(pts[pts.length - 1], 'last'), 'b')).toBe(true);
+  }, 30000);
 });
