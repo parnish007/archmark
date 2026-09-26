@@ -31,15 +31,15 @@ export function parseOwnership(content: string): (Omit<GeneratedAssetId, 'versio
     );
   if (!m) return null;
   return {
-    owner: unescape(m[1] as string),
+    owner: unescapeAttr(m[1] as string),
     kind: m[2] as 'static' | 'flow',
-    ...(m[4] !== undefined ? { flow: unescape(m[4]) } : {}),
+    ...(m[4] !== undefined ? { flow: unescapeAttr(m[4]) } : {}),
     variant: m[5] as 'light' | 'dark',
-    version: unescape(m[6] as string),
+    version: unescapeAttr(m[6] as string),
   };
 }
 
-function unescape(s: string): string {
+function unescapeAttr(s: string): string {
   return s
     .replace(/&quot;/g, '"')
     .replace(/&gt;/g, '>')
@@ -57,3 +57,4 @@ export function isOwnedBy(content: string, expected: Omit<GeneratedAssetId, 'ver
   if (found.variant !== expected.variant) return false;
   return true;
 }
+
