@@ -169,7 +169,16 @@ export function scanMarkdown(text: string): MarkdownRegionIndex {
     });
   }
   if (commentStart >= 0) {
-    fail(diag('AM2107', 'error', 'Unclosed HTML comment; markers inside cannot be trusted.', commentStartLine, 1, 'Close the comment with --> or remove it.'));
+    fail(
+      diag(
+        'AM2107',
+        'error',
+        'Unclosed HTML comment; markers inside cannot be trusted.',
+        commentStartLine,
+        1,
+        'Close the comment with --> or remove it.',
+      ),
+    );
   }
 
   // Pass 3: classify markers.

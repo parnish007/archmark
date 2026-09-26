@@ -135,9 +135,7 @@ export class ElkLayout implements LayoutEngine {
     ];
     // Skip self-edges in ELK input (drawn as loops by renderer); ELK cannot route them.
     // Endpoints reference internal node ids; edge ids live in the disjoint 'e:' namespace.
-    const routedEdges = [...model.edges]
-      .filter((e) => e.from !== e.to)
-      .sort((a, b) => a.id.localeCompare(b.id));
+    const routedEdges = [...model.edges].filter((e) => e.from !== e.to).sort((a, b) => a.id.localeCompare(b.id));
     const elkEdges = routedEdges.map((e) => ({
       id: toElkId('e', e.id),
       sources: [toElkId('n', e.from)],

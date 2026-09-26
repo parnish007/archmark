@@ -108,11 +108,20 @@ describe('layout internal identity namespace (F-B-1)', () => {
   // truthfully. Semantic IDs are NEVER modified; only the layout adapter remaps.
   const CASES: [string, string][] = [
     ['node collides with group container id', 'service __group__p "Ghost"\ngroup p "P" {\nservice w "W"\n}\n__group__p -> w\n'],
-    ['node resembles group container of another group', 'service __group__backend "X"\ngroup backend "B" {\nservice v "V"\n}\n__group__backend -> v\n'],
+    [
+      'node resembles group container of another group',
+      'service __group__backend "X"\ngroup backend "B" {\nservice v "V"\n}\n__group__backend -> v\n',
+    ],
     ['node resembles node-namespace prefix', 'service __node__x "X"\nservice y "Y"\n__node__x -> y\n'],
     ['plain reserved-looking words', 'service group "G"\nservice node "N"\nservice root "R"\ngroup -> node\nnode -> root\n'],
-    ['dunder edge cases', 'service __root__ "R"\nservice _group "G"\nservice ___ "U"\nservice node_group "NG"\nservice group_node "GN"\n__root__ -> _group\n_group -> ___\n___ -> node_group\nnode_group -> group_node\n'],
-    ['single letters incl. kind initials', 'service A "A"\nservice a "a"\nservice n "n"\nservice g "g"\nservice e "e"\nA -> a\na -> n\nn -> g\ng -> e\n'],
+    [
+      'dunder edge cases',
+      'service __root__ "R"\nservice _group "G"\nservice ___ "U"\nservice node_group "NG"\nservice group_node "GN"\n__root__ -> _group\n_group -> ___\n___ -> node_group\nnode_group -> group_node\n',
+    ],
+    [
+      'single letters incl. kind initials',
+      'service A "A"\nservice a "a"\nservice n "n"\nservice g "g"\nservice e "e"\nA -> a\na -> n\nn -> g\ng -> e\n',
+    ],
     ['group id that looks like a node id', 'service u "U"\ngroup w "WG" {\nservice v "V"\n}\nu -> v\n'],
   ];
   for (const [name, src] of CASES) {

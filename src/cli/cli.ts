@@ -21,7 +21,17 @@ import { ElkLayout, type LayoutEngine, type PlacedGraph, toScene } from '../core
 import { planFlow } from '../flow/plan.js';
 import { compileTimeline } from '../flow/timeline.js';
 import { parse } from '../language/parser.js';
-import { PatchError, extractBlocks, patchReadme, renderTag, resolveReadmeInCwd, scan, validateSvgName } from '../markdown/extract.js';
+import {
+  PatchError,
+  extractBlocks,
+  patchReadme,
+  patchRegion,
+  regionIdFor,
+  renderTag,
+  resolveReadmeInCwd,
+  scan,
+  validateSvgName,
+} from '../markdown/extract.js';
 import { SmilRenderer, describeFlowAlt } from '../renderer/smil.js';
 import { renderStatic } from '../renderer/svg.js';
 
@@ -398,7 +408,10 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
         const aLight = smil.render(scene, anim, 'light', { title: `${b.id} ${flow.id} flow` });
         const aDark = smil.render(scene, anim, 'dark', { title: `${b.id} ${flow.id} flow` });
         const named = flowAssets(b.id, flow.id);
-        const regionId = named.region;
+        // Typed region key: Markdown determines owner-anchored placement from the index.
+        // CLI describes desired output; it never computes anchor offsets (no glue).
+        const regionKey = { diagramId: b.id, kind: 'flow', flowId: flow.id } as const;
+        const regionId = regionIdFor(regionKey);
         let alf: string;
         let adf: string;
         try {
@@ -428,7 +441,7 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
           }
           let next: string;
           try {
-            next = patchReadme(out, regionId, renderTag(regionId, `./${alf}`, `./${adf}`, alt));
+            next = patchRegion(out, regionKey, renderTag(regionId, `./${alf}`, `./${adf}`, alt));
           } catch (e) {
             console.error((e as Error).message);
             failed = true;
@@ -442,7 +455,7 @@ async function buildOrCheck(readmePath: string, dryRun: boolean, deps: RunDeps):
         } else {
           pendingWrites.push({ path: join(dir, alf), content: aLight }, { path: join(dir, adf), content: aDark });
           try {
-            out = patchReadme(out, regionId, renderTag(regionId, `./${alf}`, `./${adf}`, alt));
+            out = patchRegion(out, regionKey, renderTag(regionId, `./${alf}`, `./${adf}`, alt));
           } catch (e) {
             console.error((e as Error).message);
             failed = true;
