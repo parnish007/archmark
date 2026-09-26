@@ -75,6 +75,7 @@ not a merge gate).
 
 - Safari on Apple hardware: UNVERIFIED (Playwright WebKit is not Safari).
 - macOS runtime: UNTESTED and UNCLAIMED (CI is Ubuntu + Windows only).
+- Node 22 runtime: UNVERIFIED (engines floor is `>=24`, tested on 24.14.0).
 - Logged-in GitHub (Camo) image path: UNVERIFIED.
 - Light/dark transition flash: UNMEASURED.
 - Full trademark clearance: NOT PERFORMED (see README disclaimer).
