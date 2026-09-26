@@ -15,10 +15,15 @@ export interface ArchBlock {
 export const MAX_BLOCKS = 50;
 
 export function scan(md: string): MarkdownRegionIndex {
+  // Primitive: always returns the index with diagnostics + fatal flag, never throws.
+  // Callers that need fail-closed behavior use extractBlocks/patchRegion (which throw
+  // PatchError on fatal) or check `fatal` themselves (as the CLI pre-scan gate does).
   return scanMarkdown(md);
 }
 
 export function extractBlocks(md: string): ArchBlock[] {
+  // Fail-closed convenience over scan(): throws PatchError on fatal conditions.
+  // Use scan() directly when diagnostics-without-throwing are needed.
   const idx = scan(md);
   if (idx.fatal) {
     const first = idx.diagnostics.find((d) => d.severity === 'error');
